@@ -1,7 +1,14 @@
 ;;; eglot-x.el --- Protocol extensions for Eglot  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2019 Free Software Foundation, Inc.
-;;
+
+;; Version: 0.1
+;; Author: Felicián Németh <felician.nemeth@gmail.com>
+;; Maintainer: Felicián Németh <felician.nemeth@gmail.com>
+;; URL: https://github.com/nemethf/eglot-x
+;; Keywords: convenience, languages
+;; Package-Requires: ((eglot "1.5"))
+
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
