@@ -173,7 +173,7 @@ assumed to be an element of `project-files'."
         (condition-case err
             (with-temp-buffer
               (let ((buffer-file-name file))
-                (insert-file-contents-literally file)
+                (insert-file-literally file)
                 (eglot--TextDocumentItem)))
           (file-error
            (let ((msg (error-message-string err)))
