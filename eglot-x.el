@@ -79,6 +79,24 @@ implementation to emacs-26.)"
 It has precedence over `eglot-x-files-visible-regexp'."
   :type 'regexp)
 
+;; There's no point in disabling this feature.  The variable exists to
+;; help discoverability and for documentation purposes.
+(defcustom eglot-x-enable-refs t
+  "If non-nil, enable the support for additional reference methods.
+
+The command `eglot-x-find-refs' is the entry point for the extra
+methods.  You can bind it to a key:
+
+    (define-key eglot-mode-map (kbd \"s-.\") #'eglot-x-find-refs)
+
+Currently, the `ccls' is the only server whose extra reference
+methods eglot-x supports.
+"
+  :type 'boolean
+  :link '(url-link
+          :tag "LSP extensions of the `ccls' server"
+          "https://github.com/MaskRay/ccls/wiki/LSP-Extensions"))
+
 
 ;;; Enable the extensions
 ;;
@@ -184,6 +202,60 @@ assumed to be an element of `project-files'."
            (let ((msg (error-message-string err)))
              (eglot--warn "Server-request failed for %s: %s" file msg)
              (jsonrpc-error :code -32002 :message msg))))))))
+
+
+;;; Extra reference methods
+;;
+;; API functions, variables, and the implementation is yet set in
+;; stone.
+
+(defvar eglot-x--extra-refs-map
+  '(("ccls" .
+     ;; https://github.com/MaskRay/ccls/wiki/LSP-Extensions
+     (("reload" (lambda ()
+                  (jsonrpc-notify (eglot--current-server)
+                                  :$ccls/reload
+                                  (make-hash-table))))
+      ("vars"   :$ccls/vars)
+      ("call"   :$ccls/call)
+      ("callee" :$ccls/call :callee t)
+      ("navigate-up"    :$ccls/navigate :direction "U")
+      ("navigate-down"  :$ccls/navigate :direction "D")
+      ("navigate-right" :$ccls/navigate :direction "R")
+      ("navigate-left"  :$ccls/navigate :direction "L")
+      ("inheritance"         :$ccls/inheritance)
+      ("inheritance-derived" :$ccls/navigate :derived t)
+      ("member-var"  :$ccls/member :kind 4)
+      ("member-fun"  :$ccls/member :kind 3)
+      ("member-type" :$ccls/member :kind 2)
+      ("declaration"     eglot-find-declaration)
+      ("implementation"  eglot-find-implementation)
+      ("type definition" eglot-find-typeDefinition)))
+    (t .
+       (("declaration"     eglot-find-declaration)
+        ("implementation"  eglot-find-implementation)
+        ("type definition" eglot-find-typeDefinition)))))
+
+(defun eglot-x-find-refs()
+  "Find additional references for the identifier at point.
+The available reference types depend on the server.
+See `eglot-x-enable-refs'."
+  (interactive)
+  (unless eglot-x-enable-refs
+    (eglot--error "Feature is disabled (`eglot-x-enable-refs')"))
+  (let* ((server-name
+          (plist-get (eglot--server-info (eglot--current-server)) :name))
+         (extra-refs-map
+          (alist-get server-name eglot-x--extra-refs-map
+                     (alist-get t eglot-x--extra-refs-map) nil #'equal))
+         (menu `("Extra refs:" ,`("dummy" . ,extra-refs-map)))
+         (selected (tmm-prompt menu)))
+    (if (functionp (car selected))
+        (apply #'funcall selected)
+      (eglot--lsp-xref-helper (car selected)
+                              :extra-params (cdr selected)
+                              :capability :definitionProvider))))
+
 
 (provide 'eglot-x)
 ;;; eglot-x.el ends here

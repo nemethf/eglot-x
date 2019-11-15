@@ -31,6 +31,18 @@ This feature works if `project-roots` and `project-external-roots` are
 set correctly.  (project-files was introduced in emacs-27; eglot-x
 backports the implementation to emacs-26.)
 
+## Addtional reference methods
+
+The command `eglot-x-find-refs' is the entry point for the extra
+methods.  You can bind it to a key:
+
+```elisp
+    (define-key eglot-mode-map (kbd "s-.") #'eglot-x-find-refs)
+```
+
+Currently, the `ccls` is the only server whose [extra reference
+methods][ccls-refs] eglot-x supports.
+
 # License
 
 [GPLv3+][gpl]
@@ -38,3 +50,4 @@ backports the implementation to emacs-26.)
 [eglot]: https://github.com/joaotavora/eglot/
 [xfiles]: https://github.com/sourcegraph/language-server-protocol/blob/master/extension-files.md
 [gpl]: COPYING
+[ccls-refs]: https://github.com/MaskRay/ccls/wiki/LSP-Extensions
