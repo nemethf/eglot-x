@@ -95,11 +95,26 @@ methods eglot-x supports.
   :type 'boolean
   :link '(url-link
           :tag "LSP extensions of the `ccls' server"
-          "https://github.com/MaskRay/ccls/wiki/LSP-Extensions"))
-
+          "https://github.com/MaskRay/ccls/wiki/LSP-Extensions")
+  :link `(url-link
+          :tag "A short summary of the 'reference' action kind extension"
+          ,(concat "https://github.com/joaotavora/eglot/issues/"
+                   "302#issuecomment-550225329")))
 
 ;;; Enable the extensions
 ;;
+(defun eglot-x--recursive-concat (plist props val)
+"Change value in PLIST of PROPS to VAL.
+Works almost like `plist-put` but PLIST recursively contains
+property lists.  VAL is a vector and concatenated to the value
+determined by PROPS (a list of properties)."
+(if (not props)
+    (vconcat plist val)
+  (let ((sub-plist (plist-get plist (car props)))
+        (sub-props (cdr props)))
+    (plist-put plist (car props)
+               (eglot-x--recursive-concat sub-plist sub-props val)))))
+
 (cl-defmethod eglot-client-capabilities :around
   (_s)
   "Extend client with non-standard capabilities."
@@ -108,6 +123,11 @@ methods eglot-x supports.
       (setq capabilities (append capabilities
                                  (list :xfilesProvider t
                                        :xcontentProvider t))))
+    (when eglot-x-enable-refs
+      (let ((props '(:textDocument :codeAction :codeActionLiteralSupport
+                                   :codeActionKind :valueSet)))
+        (setq capabilities
+              (eglot-x--recursive-concat capabilities props ["reference"]))))
     capabilities))
 
 
@@ -206,55 +226,85 @@ assumed to be an element of `project-files'."
 
 ;;; Extra reference methods
 ;;
-;; API functions, variables, and the implementation is yet set in
-;; stone.
+;; Rough sepecification of the feature:
+;; https://github.com/joaotavora/eglot/issues/302#issuecomment-550225329
 
-(defvar eglot-x--extra-refs-map
-  '(("ccls" .
-     ;; https://github.com/MaskRay/ccls/wiki/LSP-Extensions
-     (("reload" (lambda ()
-                  (jsonrpc-notify (eglot--current-server)
-                                  :$ccls/reload
-                                  (make-hash-table))))
-      ("vars"   :$ccls/vars)
-      ("call"   :$ccls/call)
-      ("callee" :$ccls/call :callee t)
-      ("navigate-up"    :$ccls/navigate :direction "U")
-      ("navigate-down"  :$ccls/navigate :direction "D")
-      ("navigate-right" :$ccls/navigate :direction "R")
-      ("navigate-left"  :$ccls/navigate :direction "L")
-      ("inheritance"         :$ccls/inheritance)
-      ("inheritance-derived" :$ccls/navigate :derived t)
-      ("member-var"  :$ccls/member :kind 4)
-      ("member-fun"  :$ccls/member :kind 3)
-      ("member-type" :$ccls/member :kind 2)
-      ("declaration"     eglot-find-declaration)
-      ("implementation"  eglot-find-implementation)
-      ("type definition" eglot-find-typeDefinition)))
-    (t .
-       (("declaration"     eglot-find-declaration)
-        ("implementation"  eglot-find-implementation)
-        ("type definition" eglot-find-typeDefinition)))))
+;; eglot-x modified `eglot-client-capabilities', so the lsp clients
+;; sends "reference" as an ActionKind it supports.  However, eglot
+;; does not support it.  So the following `advice-add' calls remove
+;; "reference" kinds of the code action form the CodeAction lists the
+;; server sends to the client.
+(defvar eglot-x--filtering-enabled nil)
 
-(defun eglot-x-find-refs()
+(defun eglot-x--enable-filtering (orig-fun &rest args)
+  "."
+  (let ((eglot-x--filtering-enabled t))
+    (apply orig-fun args)))
+
+(defun eglot-x--filter-code-actions (actions)
+  ""
+  (if eglot-x--filtering-enabled
+      (seq-filter (lambda (action)
+                    (not (equal (plist-get action :kind) "reference")))
+                  actions)
+    actions))
+
+(advice-add 'eglot-code-actions :around #'eglot-x--enable-filtering)
+(advice-add 'jsonrpc-request :filter-return #'eglot-x--filter-code-actions)
+
+(defvar eglot-x--default-menu-items
+  '((:declarationProvider    "declaration"     eglot-find-declaration)
+    (:implementationProvider "implementation"  eglot-find-implementation)
+    (:typeDefinitionProvider "type definition" eglot-find-typeDefinition))
+  "List of items in the form of capability, title, function-name.")
+
+(defun eglot-x-find-refs (&optional beg end)
   "Find additional references for the identifier at point.
 The available reference types depend on the server.
 See `eglot-x-enable-refs'."
   (interactive)
   (unless eglot-x-enable-refs
     (eglot--error "Feature is disabled (`eglot-x-enable-refs')"))
-  (let* ((server-name
-          (plist-get (eglot--server-info (eglot--current-server)) :name))
-         (extra-refs-map
-          (alist-get server-name eglot-x--extra-refs-map
-                     (alist-get t eglot-x--extra-refs-map) nil #'equal))
-         (menu `("Extra refs:" ,`("dummy" . ,extra-refs-map)))
+  (let* ((server (eglot--current-server-or-lose))
+         (actions
+          (jsonrpc-request
+           server
+           :textDocument/codeAction
+           (list :textDocument (eglot--TextDocumentIdentifier)
+                 :range (list :start (eglot--pos-to-lsp-position beg)
+                              :end (eglot--pos-to-lsp-position end))
+                 :only ["reference"]
+                 )))
+         (menu-items
+          (or (mapcar (jsonrpc-lambda (&key command &key title &allow-other-keys)
+                        (cons title command))
+                      actions)
+              (eglot--error "No code actions here")))
+         ;; Append default items only if the server supports them.
+         (default-menu-items
+           (seq-filter (lambda (item) (eglot--server-capable (car item)))
+                       eglot-x--default-menu-items))
+         (default-menu-items
+           (mapcar #'cdr default-menu-items))
+         (menu-items (append menu-items default-menu-items))
+         (menu `("Extra reference methods:" ("dummy" ,@menu-items)))
          (selected (tmm-prompt menu)))
     (if (functionp (car selected))
         (apply #'funcall selected)
-      (eglot--lsp-xref-helper (car selected)
-                              :extra-params (cdr selected)
-                              :capability :definitionProvider))))
+      (let* ((response
+              (eglot--dcase selected
+                (((Command) command arguments)
+                 (eglot-execute-command server (intern command) arguments))))
+             (eglot--lsp-xref-refs
+              (eglot--collecting-xrefs (collect)
+                (mapc
+                 (eglot--lambda ((Location) uri range)
+                   (collect (eglot--xref-make (symbol-at-point) uri range)))
+                 (if (vectorp response) response (list response))))))
+        (if eglot--lsp-xref-refs
+            (xref-find-references "LSP identifier at point.")
+          (eglot--message "\"%s\" returned no references"
+                          (plist-get selected :title)))))))
 
 
 (provide 'eglot-x)
