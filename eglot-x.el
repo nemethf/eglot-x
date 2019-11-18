@@ -229,11 +229,11 @@ assumed to be an element of `project-files'."
 ;; Rough sepecification of the feature:
 ;; https://github.com/joaotavora/eglot/issues/302#issuecomment-550225329
 
-;; eglot-x modified `eglot-client-capabilities', so the lsp clients
-;; sends "reference" as an ActionKind it supports.  However, eglot
-;; does not support it.  So the following `advice-add' calls remove
-;; "reference" kinds of the code action form the CodeAction lists the
-;; server sends to the client.
+;; Eglot-x modifies `eglot-client-capabilities', so eglot sends
+;; "reference" as a supported ActionKind.  However, eglot does not
+;; really support it.  So the following `advice-add' calls remove
+;; actions with "reference" kind from the CodeAction lists sent by the
+;; server.
 (defvar eglot-x--filtering-enabled nil)
 
 (defun eglot-x--enable-filtering (orig-fun &rest args)
