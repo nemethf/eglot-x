@@ -273,7 +273,7 @@ See `eglot-x-enable-refs'."
            (list :textDocument (eglot--TextDocumentIdentifier)
                  :range (list :start (eglot--pos-to-lsp-position beg)
                               :end (eglot--pos-to-lsp-position end))
-                 :only ["reference"]
+                 :context (list :diagnostics [] :only ["reference"])
                  )))
          (menu-items
           (mapcar (jsonrpc-lambda (&key command &key title &allow-other-keys)
