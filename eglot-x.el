@@ -118,7 +118,7 @@ determined by PROPS (a list of properties)."
 (cl-defmethod eglot-client-capabilities :around
   (_s)
   "Extend client with non-standard capabilities."
-  (let ((capabilities (cl-call-next-method)))
+  (let ((capabilities (copy-tree (cl-call-next-method))))
     (when eglot-x-enable-files
       (setq capabilities (append capabilities
                                  (list :xfilesProvider t
