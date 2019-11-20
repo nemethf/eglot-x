@@ -229,9 +229,9 @@ assumed to be an element of `project-files'."
 ;; Rough sepecification of the feature:
 ;; https://github.com/joaotavora/eglot/issues/302#issuecomment-550225329
 
-;; Eglot-x modifies `eglot-client-capabilities', so eglot sends
-;; "reference" as a supported ActionKind.  However, eglot does not
-;; really support it.  So the following `advice-add' calls remove
+;; Eglot-x modifies `eglot-client-capabilities' and tricks eglot into
+;; sending "reference" as a supported ActionKind.  However, eglot does
+;; not really support it.  So the following `advice-add' calls remove
 ;; actions with "reference" kind from the CodeAction lists sent by the
 ;; server.
 (defvar eglot-x--filtering-enabled nil)
@@ -276,17 +276,17 @@ See `eglot-x-enable-refs'."
                  :only ["reference"]
                  )))
          (menu-items
-          (or (mapcar (jsonrpc-lambda (&key command &key title &allow-other-keys)
-                        (cons title command))
-                      actions)
-              (eglot--error "No code actions here")))
+          (mapcar (jsonrpc-lambda (&key command &key title &allow-other-keys)
+                    (cons title command))
+                  actions))
          ;; Append default items only if the server supports them.
          (default-menu-items
            (seq-filter (lambda (item) (eglot--server-capable (car item)))
                        eglot-x--default-menu-items))
          (default-menu-items
            (mapcar #'cdr default-menu-items))
-         (menu-items (append menu-items default-menu-items))
+         (menu-items (or (append menu-items default-menu-items)
+                         (eglot--error "No code actions here")))
          (menu `("Extra reference methods:" ("dummy" ,@menu-items)))
          (selected (tmm-prompt menu)))
     (if (functionp (car selected))
