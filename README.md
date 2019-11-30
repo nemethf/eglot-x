@@ -31,7 +31,7 @@ This feature works if `project-roots` and `project-external-roots` are
 set correctly.  (project-files was introduced in emacs-27; eglot-x
 backports the implementation to emacs-26.)
 
-## Addtional reference methods
+## Additional reference methods
 
 The command `eglot-x-find-refs' is the entry point for the extra
 methods.  You can bind it to a key:
@@ -43,6 +43,12 @@ methods.  You can bind it to a key:
 Currently, the `ccls` is the only server whose [extra reference
 methods][ccls-refs] eglot-x supports.
 
+## Encoding negotiation
+
+[The extension][utf-8-offsets] allows the client and the server to
+negotiate a proper encoding to be used in transmitting column
+positions.
+
 # License
 
 [GPLv3+][gpl]
@@ -51,3 +57,4 @@ methods][ccls-refs] eglot-x supports.
 [xfiles]: https://github.com/sourcegraph/language-server-protocol/blob/master/extension-files.md
 [gpl]: COPYING
 [ccls-refs]: https://github.com/MaskRay/ccls/wiki/LSP-Extensions
+[utf-8-offsets]: https://clangd.github.io/extensions.html#utf-8-offsets

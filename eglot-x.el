@@ -97,6 +97,31 @@ methods eglot-x supports.
           :tag "LSP extensions of the `ccls' server"
           "https://github.com/MaskRay/ccls/wiki/LSP-Extensions"))
 
+(defcustom eglot-x-enable-encoding-negotiation t
+  "If non-nil, automatically negotiate proper encoding of positions.
+
+The extension allows the client and the server to negotiate a
+proper encoding to be used in transmitting column positions.
+
+`eglot-x-encoding-alist' defines the details of the client's
+behavior."
+  :type 'boolean
+  :link '(url-link
+          :tag "The definition of the extension (clangd)"
+          "https://clangd.github.io/extensions.html#utf-8-offsets"))
+
+(defcustom eglot-x-encoding-alist
+  '(("utf-32" . eglot-x--encoding-configure-utf-32)
+    ("utf-16" . eglot-x--encoding-configure-utf-16))
+  "Alist of encoding and configuration function pairs.
+The keys are the encodings eglot supports.  Encodings should be
+in the order of peference.  It SHOULD include \"utf-16\".  Note
+that eglot achives the best performance with \"utf-32\".  If the
+result of the client-server negotiation is a key of the alist,
+then the corresponding function is called with the key as an
+argument."
+  :type '(alist :key-type string :value-type function))
+
 
 ;;; Enable the extensions
 ;;
@@ -108,6 +133,12 @@ methods eglot-x supports.
       (setq capabilities (append capabilities
                                  (list :xfilesProvider t
                                        :xcontentProvider t))))
+    (when eglot-x-enable-encoding-negotiation
+      (add-hook 'eglot--managed-mode-hook
+                #'eglot-x--encoding-configure)
+      (setq capabilities (append capabilities
+                                 (list :offsetEncoding
+                                       (mapcar #'car eglot-x-encoding-alist)))))
     capabilities))
 
 
@@ -206,7 +237,7 @@ assumed to be an element of `project-files'."
 
 ;;; Extra reference methods
 ;;
-;; API functions, variables, and the implementation is yet set in
+;; API functions, variables, and the implementation is not yet set in
 ;; stone.
 
 (defvar eglot-x--extra-refs-map
@@ -255,6 +286,71 @@ See `eglot-x-enable-refs'."
       (eglot--lsp-xref-helper (car selected)
                               :extra-params (cdr selected)
                               :capability :definitionProvider))))
+
+
+;;; Encoding negotiation
+;; https://clangd.github.io/extensions.html#utf-8-offsets
+
+;; Eglot does not save the full InitializeResult response of the
+;; server, so the following chain of advised functions copies the
+;; negotiated encoding into the server's capabilities.  It therefore
+;; becomes accessible by `eglot-x--encoding-configure'.
+
+(defvar eglot-x--encoding-hack nil)
+(defun eglot-x--encoding-enable-hack (orig-fun &rest args)
+  (let ((eglot-x--encoding-hack t))
+    (apply orig-fun args)))
+(advice-add 'eglot--connect :around #'eglot-x--encoding-enable-hack)
+
+(defun eglot-x--encoding-mod-async-request (args)
+  (if (not eglot-x--encoding-hack)
+      args
+    (let* ((plist (seq-drop args 3))
+           (head (seq-take args 3))
+           (success-fn (plist-get plist :success-fn))
+           (success-fn (lambda (&rest args)
+                         (let ((args (eglot-x--encoding-mod-result args)))
+                           (apply success-fn args))))
+           (plist (and plist
+                       (plist-put plist :success-fn success-fn))))
+      `(,@head ,@plist))))
+(advice-add 'jsonrpc--async-request-1 :filter-args
+            #'eglot-x--encoding-mod-async-request)
+
+(defun eglot-x--encoding-mod-result (result)
+  "If RESULT is initializationOptions, copy offsetEncoding into capabilities."
+  (let* ((plist (car result))
+         (offset-encoding (plist-get plist :offsetEncoding))
+         (capabilities (plist-get plist :capabilities)))
+    (if (not (and offset-encoding capabilities))
+        result
+      (setq plist (copy-tree plist))
+      (list (plist-put plist :capabilities
+                       (plist-put capabilities :offsetEncoding
+                                  offset-encoding))))))
+
+;; Should be in `eglot--managed-mode-hook'.
+(defun eglot-x--encoding-configure ()
+  "Configure eglot based on the negotiated encoding."
+  (when eglot-x-enable-encoding-negotiation
+    (let* ((encoding (eglot--server-capable :offsetEncoding))
+           (fn (assoc-default encoding eglot-x-encoding-alist)))
+      (when fn
+        (funcall fn encoding)))))
+
+(defun eglot-x--encoding-configure-utf-32 (_encoding)
+  (let ((pairs
+         '((eglot-current-column-function . eglot-current-column)
+           (eglot-move-to-column-function . eglot-move-to-column))))
+    (dolist (pair pairs)
+      (set (make-local-variable (car pair)) (cdr pair)))))
+
+(defun eglot-x--encoding-configure-utf-16 (_encoding)
+  (let ((pairs
+         '((eglot-current-column-function . eglot-lsp-abiding-column)
+           (eglot-move-to-column-function . eglot-move-to-lsp-abiding-column))))
+    (dolist (pair pairs)
+      (set (make-local-variable (car pair)) (cdr pair)))))
 
 
 (provide 'eglot-x)
