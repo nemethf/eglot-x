@@ -240,11 +240,11 @@ assumed to be an element of `project-files'."
 ;; API functions, variables, and the implementation is not yet set in
 ;; stone.
 
-(defvar eglot-x--extra-refs-map
+(defvar eglot-x--extra-refs-alist
   '(("ccls" .
      ;; https://github.com/MaskRay/ccls/wiki/LSP-Extensions
      (("reload" (lambda ()
-                  (jsonrpc-notify (eglot--current-server)
+                  (jsonrpc-notify (eglot-current-server)
                                   :$ccls/reload
                                   (make-hash-table))))
       ("vars"   :$ccls/vars)
@@ -274,12 +274,14 @@ See `eglot-x-enable-refs'."
   (interactive)
   (unless eglot-x-enable-refs
     (eglot--error "Feature is disabled (`eglot-x-enable-refs')"))
+  (unless (eglot-current-server)
+    (eglot--error "No active LSP server"))
   (let* ((server-name
-          (plist-get (eglot--server-info (eglot--current-server)) :name))
-         (extra-refs-map
-          (alist-get server-name eglot-x--extra-refs-map
-                     (alist-get t eglot-x--extra-refs-map) nil #'equal))
-         (menu `("Extra refs:" ,`("dummy" . ,extra-refs-map)))
+          (plist-get (eglot--server-info (eglot-current-server)) :name))
+         (extra-refs-alist
+          (alist-get server-name eglot-x--extra-refs-alist
+                     (alist-get t eglot-x--extra-refs-alist) nil #'equal))
+         (menu `("Extra refs:" ,`("dummy" . ,extra-refs-alist)))
          (selected (tmm-prompt menu)))
     (if (functionp (car selected))
         (apply #'funcall selected)
