@@ -116,7 +116,7 @@ behavior."
   "Alist of encoding and configuration function pairs.
 The keys are the encodings eglot supports.  Encodings should be
 in the order of peference.  It SHOULD include \"utf-16\".  Note
-that eglot achives the best performance with \"utf-32\".  If the
+that eglot achieves the best performance with \"utf-32\".  If the
 result of the client-server negotiation is a key of the alist,
 then the corresponding function is called with the key as an
 argument."
@@ -128,7 +128,7 @@ argument."
 (cl-defmethod eglot-client-capabilities :around
   (_s)
   "Extend client with non-standard capabilities."
-  (let ((capabilities (cl-call-next-method)))
+  (let ((capabilities (copy-tree (cl-call-next-method))))
     (when eglot-x-enable-files
       (setq capabilities (append capabilities
                                  (list :xfilesProvider t
@@ -267,7 +267,7 @@ assumed to be an element of `project-files'."
         ("implementation"  eglot-find-implementation)
         ("type definition" eglot-find-typeDefinition)))))
 
-(defun eglot-x-find-refs()
+(defun eglot-x-find-refs ()
   "Find additional references for the identifier at point.
 The available reference types depend on the server.
 See `eglot-x-enable-refs'."
@@ -334,7 +334,8 @@ See `eglot-x-enable-refs'."
 ;; Should be in `eglot--managed-mode-hook'.
 (defun eglot-x--encoding-configure ()
   "Configure eglot based on the negotiated encoding."
-  (when eglot-x-enable-encoding-negotiation
+  (when (and eglot-x-enable-encoding-negotiation
+             (eglot-current-server))
     (let* ((encoding (eglot--server-capable :offsetEncoding))
            (fn (assoc-default encoding eglot-x-encoding-alist)))
       (when fn
