@@ -137,9 +137,11 @@ argument."
     (when eglot-x-enable-encoding-negotiation
       (add-hook 'eglot--managed-mode-hook
                 #'eglot-x--encoding-configure)
-      (setq capabilities (append capabilities
-                                 (list :offsetEncoding
-                                       (mapcar #'car eglot-x-encoding-alist)))))
+      (setq capabilities
+            (append capabilities
+                    (list :offsetEncoding
+                          (apply #'vector
+                                 (mapcar #'car eglot-x-encoding-alist))))))
     capabilities))
 
 
