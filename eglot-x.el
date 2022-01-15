@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2019 Free Software Foundation, Inc.
 
-;; Version: 0.1
+;; Version: 0.2
 ;; Author: Felicián Németh <felician.nemeth@gmail.com>
 ;; Maintainer: Felicián Németh <felician.nemeth@gmail.com>
 ;; URL: https://github.com/nemethf/eglot-x
@@ -237,6 +237,13 @@ assumed to be an element of `project-files'."
 	  (jsonrpc-error :code -32001 :message "Access denied"))
       (if buffer
           (with-current-buffer buffer
+            ;; The server might request textDocument/xcontent even
+            ;; before `eglot--connect' succesfully finishes and puts
+            ;; the server into `eglot--servers-by-project'.  But this
+            ;; buffer belongs to the project, so set the local cache,
+            ;; and avoid a failure in
+            ;; `eglot--TextDocumentItem'/`eglot--current-server-or-lose'.
+            (setq eglot--cached-server server)
             (eglot--TextDocumentItem))
         (condition-case err
             (with-temp-buffer
