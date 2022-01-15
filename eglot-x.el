@@ -7,7 +7,7 @@
 ;; Maintainer: Felicián Németh <felician.nemeth@gmail.com>
 ;; URL: https://github.com/nemethf/eglot-x
 ;; Keywords: convenience, languages
-;; Package-Requires: ((eglot "1.5"))
+;; Package-Requires: ((emacs "27.1") (project "0.8.1") (eglot "1.8"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -55,15 +55,14 @@
 The extension allows the client and the server to have separate
 file systems.  For example, the server can run inside a Docker
 container, or the source code can be on a remote system accessed
-by Tramp.  (With emacs-26, the latter is not supported.)
+by Tramp.
 
 The client can send files to the server only from the result of
 `project-files'.  The list of eligible files can further limited
 by `eglot-x-files-visible-regexp' and
 `eglot-x-files-hidden-regexp'.  This feature works if
 `project-roots' and `project-external-roots' are set correctly.
-\(project-files was introduced in emacs-27; eglot-x backports the
-implementation to emacs-26.)"
+"
   :type 'boolean
   :link `(url-link
           :tag "the documentation of the extesion proposal"
@@ -172,12 +171,7 @@ subset of the project roots and external roots."
               (< 0 (car time-diff))
               (< 5 (cadr time-diff)))
       ;; Cache is expired
-      (setq files (if (fboundp 'project-files)
-                      (project-files project dirs)
-                    ;; Copied from an old version of emacs-27
-                    (all-completions
-                     "" (project-file-completion-table
-                         project dirs)))))
+      (setq files (project-files project dirs)))
     (setq eglot-x--project-files-cache (list timestamp args files))
     files))
 

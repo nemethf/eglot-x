@@ -23,13 +23,11 @@ To adjust which extensions are enabled:
 The [extension][xfiles] allows the client and the server to have
 separate file systems.  For example, the server can run inside a
 Docker container, or the source code can be on a remote system
-accessed by Tramp.  (With emacs-26, the latter is not supported.)  The
-client can send files to the server only from the result of
-`project-files`.  The list of eligible files can further limited by
-`eglot-x-files-visible-regexp` and `eglot-x-files-hidden-regexp`.
-This feature works if `project-roots` and `project-external-roots` are
-set correctly.  (project-files was introduced in emacs-27; eglot-x
-backports the implementation to emacs-26.)
+accessed by Tramp.  The client can send files to the server only from
+the result of `project-files`.  The list of eligible files can further
+limited by `eglot-x-files-visible-regexp` and
+`eglot-x-files-hidden-regexp`.  This feature works if `project-roots`
+and `project-external-roots` are set correctly.
 
 ## Additional reference methods
 
