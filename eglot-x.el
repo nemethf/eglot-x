@@ -62,7 +62,9 @@ The client can send files to the server only from the result of
 by `eglot-x-files-visible-regexp' and
 `eglot-x-files-hidden-regexp'.  This feature works if
 `project-roots' and `project-external-roots' are set correctly.
-"
+
+Enabling extension disables Eglot's built-in support for Tramp
+files."
   :type 'boolean
   :link `(url-link
           :tag "the documentation of the extesion proposal"
@@ -144,6 +146,22 @@ argument."
 ;;; Files extension
 ;;
 ;; https://github.com/sourcegraph/language-server-protocol/blob/master/extension-files.md
+
+(defun eglot-x--disable-built-in-tramp (orig-fun &rest args)
+  "Disable Eglot's remote server support when `eglot-x-enable-files' is set."
+  (if eglot-x-enable-files
+      (cl-flet ((file-remote-p nil)
+                (file-local-name (file) file))
+        (apply orig-fun args))
+    (apply orig-fun args)))
+;; defuns containing file-remote-p
+(advice-add 'eglot--cmd     :around #'eglot-x--disable-built-in-tramp)
+(advice-add 'eglot--connect :around #'eglot-x--disable-built-in-tramp)
+(advice-add 'eglot--path-to-uri :around #'eglot-x--disable-built-in-tramp)
+(advice-add 'eglot--uri-to-path :around #'eglot-x--disable-built-in-tramp)
+;; defuns containing file-local-name (but not file-remote-p)
+(advice-add 'eglot--connect :around #'eglot-x--disable-built-in-tramp)
+
 
 (defun eglot-x--path-to-TextDocumentIdentifier (path)
   "Convert PATH to TextDocumentIdentifier."

@@ -29,6 +29,9 @@ limited by `eglot-x-files-visible-regexp` and
 `eglot-x-files-hidden-regexp`.  This feature works if `project-roots`
 and `project-external-roots` are set correctly.
 
+Enabling extension disables Eglot's built-in support for Tramp
+files.
+
 ## Additional reference methods
 
 The command `eglot-x-find-refs' is the entry point for the extra
