@@ -68,7 +68,7 @@ positions.
 
   ![SSR](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/ssr.png)
 
-  Replacement process is similary to `query-replace`:
+  The replacement process is similar to `query-replace`:
 
   ![SSR2](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/ssr-2.png)
 
