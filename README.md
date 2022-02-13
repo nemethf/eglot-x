@@ -74,6 +74,10 @@ positions.
   match.
 
   ![ws-symbol](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/ws-symbol.png)
+
+  Additional input refines the results and the point in main.rs is
+  changed once again to the location of the new first result:
+
   ![ws-symbol-2](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/ws-symbol-2.png)
 
   You can change the search scope and kind with `C-l` and `C-M-l`,
@@ -87,9 +91,15 @@ positions.
 
 - [Runnables]: see defun `eglot-x-ask-runnables`.
 
+  Results for the whole buffer:
+
   ![runnables-1](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/runnables.png)
 
+  Selecting the first "runnable":
+
   ![runnables-2](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/runnables-2.png)
+
+  The "runnable" is executed as a `compile-command`:
 
   ![runnables-3](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/runnables-3.png)
 
@@ -104,7 +114,9 @@ positions.
 
   ![crate-graph](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/view-crate-graph.png)
 
-  ![crate-graph-2](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/view-crate-graph-2.png)
+  You can also jump to the crate (Cargo.toml) if the graph-type is not 'svg':
+
+  ![crate-graph-2](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/view-crate-graph-ascii.png)
 
 ### rust-analyzer specific extensions for debugging rust-analyzer
 - [Analyzer Status]: see defun `eglot-x-analyzer-status`.
