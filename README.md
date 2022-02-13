@@ -64,7 +64,12 @@ positions.
 - [Open External Documentation]: see defun `eglot-x-open-external-documentation`.
 - [Structural Search Replace (SSR)][ssr]: see defun `eglot-x-structural-search-replace`.
 
+  The server checks the correctness of the query while you type:
+
   ![SSR](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/ssr.png)
+
+  Replacement process is similary to `query-replace`:
+
   ![SSR2](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/ssr-2.png)
 
 - [Workspace Symbols Filtering]: see defun `eglot-x-find-workspace-symbol`.
