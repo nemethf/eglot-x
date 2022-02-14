@@ -39,9 +39,6 @@
 
 ;;; Code:
 
-;; TODO: project-roots is obsolete
-;; TODO: eglot--managed-mode-hook is obsolete
-
 (require 'eglot)
 (require 'project)
 
@@ -64,7 +61,7 @@ The client can send files to the server only from the result of
 `project-files'.  The list of eligible files can further limited
 by `eglot-x-files-visible-regexp' and
 `eglot-x-files-hidden-regexp'.  This feature works if
-`project-roots' and `project-external-roots' are set correctly.
+`project-root' and `project-external-roots' are set correctly.
 
 Enabling extension disables Eglot's built-in support for Tramp
 files."
@@ -93,8 +90,8 @@ methods.  You can bind it to a key:
 
     (define-key eglot-mode-map (kbd \"s-.\") #'eglot-x-find-refs)
 
-Currently, the `ccls' is the only server whose extra reference
-methods eglot-x supports.
+Currently, the `ccls' and `rust-analyzer' are the only servers
+whose extra reference methods eglot-x supports.
 "
   :type 'boolean
   :link '(url-link
@@ -177,7 +174,7 @@ docs/dev/lsp-extensions.md#server-status"))
                                  (list :xfilesProvider t
                                        :xcontentProvider t))))
     (when eglot-x-enable-encoding-negotiation
-      (add-hook 'eglot--managed-mode-hook
+      (add-hook 'eglot-managed-mode-hook
                 #'eglot-x--encoding-configure)
       (setq capabilities
             (append capabilities
@@ -237,7 +234,7 @@ subset of the project roots and external roots."
          (time-diff (time-subtract timestamp
                                    (car eglot-x--project-files-cache)))
          (dirs (or dirs
-                   (append (project-roots project)
+                   (append (list (project-root project))
                            (project-external-roots project)))))
     (when (or (not (equal args (cadr eglot-x--project-files-cache)))
               (< 0 (car time-diff))
@@ -260,7 +257,7 @@ assumed to be an element of `project-files'."
   (server (_method (eql workspace/xfiles)) &key base)
   "Handle server request workspace/xfiles"
   (let* ((project (eglot--project server))
-         (roots (append (project-roots project)
+         (roots (append (list (project-root project))
                         (project-external-roots project)))
          (dirs (if base
                    ;; Find the root directory of base
@@ -1014,7 +1011,7 @@ replacement_text)."
                      (eq (current-buffer) (marker-buffer (cdar d))))
            return (cdr d)))
 
-(defun eglot-x--search-forward (rdata string &optional bound noerror count)
+(defun eglot-x--search-forward (rdata _string &optional bound _noerror _count)
   ;; checkdoc-params: (string bound noerror count)
   "Search like `search-forward', but rely on replacement data RDATA.
 See `eglot-x--replace' for the description of RDATA, and
@@ -1034,12 +1031,14 @@ See `eglot-x--replace' for the description of RDATA, and
       (set-match-data (list (car range) (cdr range)))
       (goto-char (cdr range)))))
 
-(defun eglot-x--query-workspace-edit (wedit query &optional start end backward)
+(declare-function fileloop-continue "fileloop" ())
+
+(defun eglot-x--query-workspace-edit (wedit query &optional _start _end _backward)
   ;; Results in wedit are already in (start, end), so there's no need
   ;; to specify that.
   ;; TODO: create markers for changes, not just for documentChanges
   ;; TODO: what about CreateFile, RenameFile, DeleteFile?
-  (eglot--dbind ((WorkspaceEdit) changes documentChanges) wedit
+  (eglot--dbind ((WorkspaceEdit) _changes documentChanges) wedit
     (let* ((rdata ;; list of cons(cons(beg-marker end-marker) TextEdit).
             (apply #'append
              (mapcar
@@ -1258,17 +1257,17 @@ Adapted from `eglot--lsp-xref-helper'."
 
 (cl-defstruct (xref-loc-runnable
                   (:include xref-item)
-                  (:constructor xref-make-loc-runnable-- (runnable))
+                  (:constructor xref-make-loc-runnable (runnable))
                   (:noinline t))
   "An xref location corresponding to a Runnable LSP object."
   runnable)
 
 (defun eglot-x--make-xref-runnable (runnable)
-  (eglot--dbind ((Runnable) label location kind args) runnable
-    (xref-make label (xref-make-loc-runnable-- runnable))))
+  (eglot--dbind ((Runnable) label) runnable
+    (xref-make label (xref-make-loc-runnable runnable))))
 
 (cl-defmethod xref-location-group ((l xref-loc-runnable))
-  (eglot--dbind ((Runnable) label location kind args)
+  (eglot--dbind ((Runnable) location)
       (xref-loc-runnable-runnable l)
     (eglot--dbind ((LocationLink) targetUri) location
       (if targetUri
@@ -1276,13 +1275,13 @@ Adapted from `eglot--lsp-xref-helper'."
         "workspace"))))
 
 (cl-defmethod xref-location-line ((l xref-loc-runnable))
-  (eglot--dbind ((Runnable) label location kind args)
+  (eglot--dbind ((Runnable) location)
       (xref-loc-runnable-runnable l)
     (eglot--dbind ((LocationLink) targetRange) location
       (plist-get (plist-get targetRange :start) :line))))
 
 (cl-defmethod xref-location-marker ((l xref-loc-runnable))
-  (eglot--dbind ((Runnable) label location kind args)
+  (eglot--dbind ((Runnable) location args)
       (xref-loc-runnable-runnable l)
     (eglot--dbind ((LocationLink) targetUri targetRange) location
       (let ((file (if targetUri (eglot--uri-to-path targetUri)
@@ -1298,7 +1297,7 @@ Adapted from `eglot--lsp-xref-helper'."
 
 (defun eglot-x--run-after-jump () ; a complete workout program
   "Run the selected Runnable after an xref jump."
-  (eglot--dbind ((Runnable) label location kind args)
+  (eglot--dbind ((Runnable) label args)
       ;; FIXME: Accessing the selected item with a private variable.
       ;; See emacs-bug#53956, https://debbugs.gnu.org/cgi/bugreport.cgi?bug=53956
       (let ((loc (xref-item-location xref--current-item)))
@@ -1435,7 +1434,3 @@ This is in contrast to merely setting it to 0."
 
 (provide 'eglot-x)
 ;;; eglot-x.el ends here
-
-;; Local Variables:
-;; nameless-aliases: (("e" . "eglot"))
-;; End:

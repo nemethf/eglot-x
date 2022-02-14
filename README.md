@@ -41,8 +41,8 @@ methods.  You can bind it to a key:
     (define-key eglot-mode-map (kbd "s-.") #'eglot-x-find-refs)
 ```
 
-Currently, the `ccls` is the only server whose [extra reference
-methods][ccls-refs] eglot-x supports.
+Currently, the [`ccls`][ccls-refs] and `rust-analyzer` are the only
+servers whose extra reference methods eglot-x supports.
 
 ## Encoding negotiation
 
