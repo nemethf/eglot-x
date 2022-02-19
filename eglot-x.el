@@ -582,7 +582,7 @@ it handles the SnippetTextEdit format."
   "Ask server to move down item under point or selection.
 With prefix arg move it up."
   (interactive "*P")
-  (eglot-x--check-capability :experimental :moveItems)
+  (eglot-x--check-capability :experimental :moveItem)
   (let* ((beg (if (region-active-p) (region-beginning) (point)))
          (end (if (region-active-p) (region-end) (point)))
          (res
