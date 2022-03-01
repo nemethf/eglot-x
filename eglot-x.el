@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2019-2022 Free Software Foundation, Inc.
 
-;; Version: 0.3
+;; Version: 0.4
 ;; Author: Felicián Németh <felician.nemeth@gmail.com>
 ;; URL: https://github.com/nemethf/eglot-x
 ;; Keywords: convenience, languages
@@ -48,7 +48,7 @@
   :group 'eglot
   :prefix "eglot-x-")
 
-(defcustom eglot-x-enable-files t
+(defcustom eglot-x-enable-files nil
   "If non-nil, enable the support for the files protocol extension.
 
 The extension allows the client and the server to have separate
