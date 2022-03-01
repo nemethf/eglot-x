@@ -1,13 +1,12 @@
 ;;; eglot-x.el --- Protocol extensions for Eglot  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2022 Free Software Foundation, Inc.
 
 ;; Version: 0.3
 ;; Author: Felicián Németh <felician.nemeth@gmail.com>
-;; Maintainer: Felicián Németh <felician.nemeth@gmail.com>
 ;; URL: https://github.com/nemethf/eglot-x
 ;; Keywords: convenience, languages
-;; Package-Requires: ((emacs "27.1") (project "0.8.1") (eglot "1.8"))
+;; Package-Requires: ((emacs "27.1") (project "0.8.1") (eglot "1.8") (xref "1.4"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -146,6 +145,7 @@ server-support for capability experimental/serverStatus."
           :tag "the definition of the extension (rust-analyzer)"
           "https://github.com/rust-analyzer/rust-analyzer/blob/master/\
 docs/dev/lsp-extensions.md#server-status"))
+
 (defcustom eglot-x-graph-type 'auto
   "Default graph type of `eglot-x-view-crate-graph'."
   :type
@@ -447,6 +447,7 @@ See `eglot-x-enable-refs'."
 ;;   Client Commands
 ;;   CodeAction Groups
 ;;   Configuration in initializationOptions
+;;     - This is in the standard: https://github.com/joaotavora/eglot/discussions/845
 ;;   Hover Actions
 ;;   Hover Range
 ;;   Inlay Hints
@@ -1298,9 +1299,7 @@ Adapted from `eglot--lsp-xref-helper'."
 (defun eglot-x--run-after-jump () ; a complete workout program
   "Run the selected Runnable after an xref jump."
   (eglot--dbind ((Runnable) label args)
-      ;; FIXME: Accessing the selected item with a private variable.
-      ;; See emacs-bug#53956, https://debbugs.gnu.org/cgi/bugreport.cgi?bug=53956
-      (let ((loc (xref-item-location xref--current-item)))
+      (let ((loc (xref-item-location xref-current-item)))
         (when (xref-loc-runnable-p loc)
           (xref-loc-runnable-runnable loc)))
     (let* ((default-directory (or (plist-get args :workspaceRoot)
