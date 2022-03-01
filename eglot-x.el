@@ -782,10 +782,37 @@ This assumes rust."
                        (push file files))))
                  xrefs)))))
       (condition-case nil
-          (xref--show-defs xrefs nil)
+          (let ((xref-show-xrefs-function xref-show-definitions-function))
+            (xref-show-xrefs xrefs nil))
         (user-error
-         (switch-to-buffer (help-buffer))
-         (message "Can't find: %s" symbol))))))
+         (eglot-x--find-crate-with-cargo (symbol-name symbol)))))))
+        ;;  (switch-to-buffer (help-buffer))
+        ;;  (message "Can't find: %s" symbol))))))
+
+(defun eglot-x--find-crate-with-cargo (crate)
+  "Find CRATE with cargo and jq."
+  ;; The jq dependency can be easily eliminated.
+  ;; This should be in cargo.el.
+  (let* ((regexp (concat "^"
+                         (replace-regexp-in-string "_" "[_-]" crate)
+                         "$"))
+         (res (shell-command-to-string
+               (concat "cargo metadata --format-version 1|"
+                       "jq '.packages[]|select(.name|test(\""
+                       regexp
+                       "\")).manifest_path'")))
+         (xrefs
+          (lambda ()
+            (mapcar (lambda (line)
+                      (xref-make crate
+                                 (xref-make-file-location
+                                  (substring line 1 -1) 1 0)))
+                    (split-string res)))))
+    (if (not (equal res ""))
+        (let ((xref-show-xrefs-function xref-show-definitions-function))
+          (xref-show-xrefs xrefs nil))
+      (switch-to-buffer (help-buffer))
+      (message "Can't find: %s" crate))))
 
 (defvar eglot-x--graph-buffer " *eglot-x-crate-graph*"
   "Buffer name to store the output of the background process.")
