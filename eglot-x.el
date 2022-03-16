@@ -1346,16 +1346,23 @@ Adapted from `eglot--lsp-xref-helper'."
                          ,@cargoExtraArgs
                          ,@(if executableArgs
                                `("--" ,@executableArgs)))
-                       " ")))
-      (when label
-        (when (y-or-n-p
-               (format "[eglot-x] Server wants to run:\n  %s\nProceed? "
-                       compile-command))
+                       " "))
+           (choice
+            (and label
+                 (read-multiple-choice
+                  (format "[eglot-x] Server wants to run:\n  %s\nProceed? "
+                          compile-command)
+                  '((?y "yes")
+                    (?n "no")
+                    (?e "edit" "edit command then run it"))))))
+      (when (eq (car choice) ?e)
+        (setq compile-command (read-string "" compile-command)))
+      (when (member (car choice) '(?e ?y))
           ;; compile-command sets next-error-last-buffer, but xref
           ;; after running its hooks (this defun) reclaims
           ;; next-error-last-buffer.  So:
           (add-hook 'compilation-filter-hook 'eglot-x--set-error-buffer)
-          (compile compile-command))))))
+          (compile compile-command)))))
 
 (defun eglot-x--set-error-buffer ()
   (setq next-error-last-buffer (current-buffer))
