@@ -408,10 +408,11 @@ See `eglot-x-enable-refs'."
                        (plist-put capabilities :offsetEncoding
                                   offset-encoding))))))
 
-;; Should be in `eglot--managed-mode-hook'.
+;; Should be in `eglot-managed-mode-hook'.
 (defun eglot-x--encoding-configure ()
   "Configure eglot based on the negotiated encoding."
   (when (and eglot-x-enable-encoding-negotiation
+             (eglot-managed-p)
              (eglot-current-server))
     (let* ((encoding (eglot--server-capable :offsetEncoding))
            (fn (assoc-default encoding eglot-x-encoding-alist)))
