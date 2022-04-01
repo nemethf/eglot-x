@@ -458,6 +458,9 @@ See `eglot-x-enable-refs'."
     (eglot--error "Server lacks capability: %s" capabilities)))
 
 (eval-and-compile
+  (push '(InlayHint
+          ((:label :position) (:kind :tooltip :padding_left :padding_right)))
+        eglot--lsp-interface-alist)
   ;; This is an unnamed type within WorkspaceSymbol/location
   (push '(Runnable
           ((:label kind args) (location)))
@@ -1465,6 +1468,40 @@ This is in contrast to merely setting it to 0."
   "Handle notification experimental/serverStatus."
   (eglot-x--put-in-server server :server-status (list health quiescent message))
   (force-mode-line-update))
+
+;;; Inlay Hints
+(defun eglot-x-insert-inlay-hint-at-point ()
+  "Request and insert inlay-hint for symbol at point.
+Or the first hint of the active region."
+  (interactive)
+  (eglot-x--check-capability :experimental :inlayHints)
+  (pcase-let*
+      ((insert-pos (cdr (bounds-of-thing-at-point 'symbol)))
+       (`(,beg . ,end)
+        (if (region-active-p)
+            (cons (region-beginning) (region-end))
+          ;; Rust-analyzer only sends the hint if the region contains
+          ;; "mut n" in "let mut n = 5;", so bounds-of-thing-at-point
+          ;; doesn't work here.
+          (cons (line-beginning-position) (line-end-position))))
+       (res
+        (jsonrpc-request (eglot--current-server-or-lose)
+                         :experimental/inlayHints
+                         `(:range ,(list :start (eglot--pos-to-lsp-position beg)
+                                         :end (eglot--pos-to-lsp-position end))
+                                  :textDocument ,(eglot--TextDocumentIdentifier))))
+       (inserted nil))
+    (cl-loop for hint in (append res nil)
+             do (eglot--dbind ((InlayHint) label position) hint
+                  (let ((pos (eglot--lsp-position-to-point position)))
+                    (when (or (eq insert-pos pos)
+                              (region-active-p))
+                      (save-excursion
+                        (goto-char pos)
+                        (insert label)
+                        (setq inserted t)))))
+             when inserted return nil
+             finally do (user-error "[eglot-x] Server sent no inlay hints"))))
 
 (provide 'eglot-x)
 ;;; eglot-x.el ends here

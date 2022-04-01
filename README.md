@@ -111,6 +111,9 @@ positions.
 - [Server Status]: see variable `eglot-x-enable-server-status`.
   The mode-line displays the status unless it is "permanently OK".
 
+- [Inlay Hints]: for an initial, basic support see defun
+  `eglot-x-insert-inlay-hint-at-point`.
+
 ### rust-analyzer specific extensions
 - [Expand Macro]: see defun `eglot-x-expand-macro`.
 - [Related Tests]: see defun `eglot-x-ask-related-tests`.
@@ -136,25 +139,26 @@ positions.
 
 [GPLv3+][gpl]
 
-[eglot]: https://github.com/joaotavora/eglot/
-[xfiles]: https://github.com/sourcegraph/language-server-protocol/blob/master/extension-files.md
-[gpl]: COPYING
-[ccls-refs]: https://github.com/MaskRay/ccls/wiki/LSP-Extensions
-[utf-8-offsets]: https://clangd.github.io/extensions.html#utf-8-offsets
-[Snippet TextEdits]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#snippet-textedit
+[Analyzer Status]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#analyzer-status
+[Expand Macro]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#expand-macro
+[Inlay Hints]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#inlay-hints
 [Join Lines]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#join-lines
+[Matching Brace]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#matching-brace
 [Move Item]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#move-item
 [On Enter]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#on-enter
-[Matching Brace]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#matching-brace
 [Open External Documentation]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#open-external-documentation
-[ssr]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#structural-search-replace-ssr
-[Workspace Symbols Filtering]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#workspace-symbols-filtering
+[Related Tests]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#related-tests
+[Reload Workspace]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#reload-workspace
 [Runnables]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#runnables
 [Server Status]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#server-status
-[Expand Macro]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#expand-macro
-[Related Tests]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#related-tests
-[Analyzer Status]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#analyzer-status
-[Reload Workspace]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#reload-workspace
+[Snippet TextEdits]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#snippet-textedit
 [Syntax Tree]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#syntax-tree
-[View Hir]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-hir
 [View Crate Graph]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-crate-graph
+[View Hir]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-hir
+[Workspace Symbols Filtering]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#workspace-symbols-filtering
+[ccls-refs]: https://github.com/MaskRay/ccls/wiki/LSP-Extensions
+[eglot]: https://github.com/joaotavora/eglot/
+[gpl]: COPYING
+[ssr]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#structural-search-replace-ssr
+[utf-8-offsets]: https://clangd.github.io/extensions.html#utf-8-offsets
+[xfiles]: https://github.com/sourcegraph/language-server-protocol/blob/master/extension-files.md
