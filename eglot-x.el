@@ -48,6 +48,10 @@
   :group 'eglot
   :prefix "eglot-x-")
 
+(defcustom eglot-x-enable-menu t
+  "If non-nil, extend Eglot's mode-line menu."
+  :type 'boolean)
+
 (defcustom eglot-x-enable-files nil
   "If non-nil, enable the support for the files protocol extension.
 
@@ -191,7 +195,52 @@ docs/dev/lsp-extensions.md#server-status"))
              (old (if (eq exp eglot--{}) '() exp))
              (new (plist-put old :serverStatusNotification t)))
         (setq capabilities (plist-put capabilities :experimental new))))
+    (if (and (boundp 'eglot-menu) eglot-x-enable-menu)
+        (progn
+          (add-to-list 'eglot-menu
+                       '(eglot-x-sep menu-item "--") t)
+          (add-to-list 'eglot-menu
+                       `(eglot-x menu-item "eglot-x" ,eglot-x-menu) t))
+      (assq-delete-all 'eglot-x-sep eglot-menu)
+      (assq-delete-all 'eglot-x eglot-menu))
     capabilities))
+
+(easy-menu-define eglot-x-menu nil "Eglot-x menu"
+  `("Eglot-x"
+    ["Find additional references" eglot-x-find-refs]
+    ["Join lines" eglot-x-join-lines
+     :visible (eglot--server-capable :experimental :joinLines)]
+    ["Move item down" eglot-x-move-item-down
+     :visible (eglot--server-capable :experimental :moveItem)]
+    ["Move item up" eglot-x-move-item-up
+     :visible (eglot--server-capable :experimental :moveItem)]
+    ["On enter" eglot-x-on-enter
+     :visible (eglot--server-capable :experimental :onEnter)]
+    ["Jump to matching brace" eglot-x-matching-brace
+     :visible (eglot--server-capable :experimental :matchingBrace)]
+    ["Open external documentation" eglot-x-open-external-documentation
+     :visible (eglot--server-capable :experimental :externalDocs)]
+    ["Structural Search Replace (SSR)" eglot-x-structural-search-replace
+     :visible (eglot--server-capable :experimental :ssr)]
+    ["Ask Runnables" eglot-x-ask-runnables
+     :visible (eglot--server-capable :experimental :runnables)]
+    ["Insert inlay hint at point" eglot-x-insert-inlay-hint-at-point
+     :visible (eglot--server-capable :experimental :inlayHints)]
+    ("rust-analyzer commands"
+     :visible (equal "rust-analyzer"
+                     (plist-get (eglot--server-info (eglot-current-server))
+                                :name))
+     ["Ask related tests" eglot-x-ask-related-tests]
+     ["Find workspace symbol" eglot-x-find-workspace-symbol]
+     ["Expand macro" eglot-x-expand-macro]
+     ["View crate graph" eglot-x-view-crate-graph]
+     "--"
+     ["Reload workspace" eglot-x-reload-workspace]
+     ["Status" eglot-x-analyzer-status]
+     ["Show syntax tree" eglot-x-show-syntax-tree]
+     ["View HIR" eglot-x-view-hir]
+     ["View item tree" eglot-x-view-item-tree]
+     ["Show memory usage" eglot-x-memory-usage])))
 
 
 ;;; Files extension
@@ -532,8 +581,9 @@ it handles the SnippetTextEdit format."
                                                    newText))
                             ;; "At the moment, rust-analyzer
                             ;; guarantees that only a single edit will
-                            ;; have InsertTextFormat.Snippet."  Well,
-                            ;; every one of them has insertTextFormat
+                            ;; have InsertTextFormat.Snippet.", but:
+                            ;; https://github.com/rust-analyzer/rust-analyzer/issues/11006
+                            ;; Every one of them has insertTextFormat
                             ;; = 2, and there's no easy, reliable way
                             ;; to tell, which one contains a real
                             ;; snippet. RA's own .ts implementation
