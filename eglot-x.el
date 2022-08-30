@@ -195,14 +195,15 @@ docs/dev/lsp-extensions.md#server-status"))
              (old (if (eq exp eglot--{}) '() exp))
              (new (plist-put old :serverStatusNotification t)))
         (setq capabilities (plist-put capabilities :experimental new))))
-    (if (and (boundp 'eglot-menu) eglot-x-enable-menu)
-        (progn
-          (add-to-list 'eglot-menu
-                       '(eglot-x-sep menu-item "--") t)
-          (add-to-list 'eglot-menu
-                       `(eglot-x menu-item "eglot-x" ,eglot-x-menu) t))
-      (assq-delete-all 'eglot-x-sep eglot-menu)
-      (assq-delete-all 'eglot-x eglot-menu))
+    (when (boundp 'eglot-menu)
+      (if eglot-x-enable-menu
+          (progn
+            (add-to-list 'eglot-menu
+                         '(eglot-x-sep menu-item "--") t)
+            (add-to-list 'eglot-menu
+                         `(eglot-x menu-item "eglot-x" ,eglot-x-menu) t))
+        (assq-delete-all 'eglot-x-sep eglot-menu)
+        (assq-delete-all 'eglot-x eglot-menu)))
     capabilities))
 
 (easy-menu-define eglot-x-menu nil "Eglot-x menu"
