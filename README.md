@@ -135,6 +135,22 @@ positions.
 - [View Hir]: see defun `eglot-x-view-hir`.
 - (Memory Usage): see defun `eglot-x-memory-usage`.
 
+## Taplo specific extensions
+
+Relying on taplo/associatedSchema and taplo/listSchemas
+[extensions][Taplo] eglot-x provides the following commands:
+
+- `eglot-x-taplo-show-associated-schema`
+- `eglot-x-taplo-find-associated-schema`
+- `eglot-x-taplo-list-schemas`
+
+  ![taplo-menu](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/taplo-menu.png)
+
+# Other
+
+Eglot-x provides `ff-find-related-file` backends for some LSP servers.
+See the documentation of `eglot-x-enable-ff-related-file-integration`.
+
 # License
 
 [GPLv3+][gpl]
@@ -153,6 +169,7 @@ positions.
 [Server Status]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#server-status
 [Snippet TextEdits]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#snippet-textedit
 [Syntax Tree]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#syntax-tree
+[Taplo]: https://github.com/tamasfe/taplo/tree/master/crates/taplo-lsp/src/lsp_ext
 [View Crate Graph]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-crate-graph
 [View Hir]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-hir
 [Workspace Symbols Filtering]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#workspace-symbols-filtering

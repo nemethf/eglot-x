@@ -166,46 +166,19 @@ docs/dev/lsp-extensions.md#server-status"))
           :tag "documentation of rust-analyzer"
           "https://rust-analyzer.github.io/manual.html#view-crate-graph"))
 
+(defcustom eglot-x-enable-ff-related-file-integration t
+  "If non-nil, integrate eglot-x with `ff-find-related-file'.
+
+Eglot-x provides this feature when (i) the Taplo LSP server
+manages .toml files, or (ii) the rust-analyzer LSP server manages
+.rs files.  Then it sets a buffer local value for
+`ff-related-file-alist'."
+    :type 'boolean
+    :link '(function-link ff-find-related-file)
+    :link '(variable-link ff-related-file-alist))
 
 ;;; Enable the extensions
 ;;
-(cl-defmethod eglot-client-capabilities :around
-  (_s)
-  "Extend client with non-standard capabilities."
-  (let ((capabilities (copy-tree (cl-call-next-method))))
-    (when eglot-x-enable-files
-      (setq capabilities (append capabilities
-                                 (list :xfilesProvider t
-                                       :xcontentProvider t))))
-    (when eglot-x-enable-encoding-negotiation
-      (add-hook 'eglot-managed-mode-hook
-                #'eglot-x--encoding-configure)
-      (setq capabilities
-            (append capabilities
-                    (list :offsetEncoding
-                          (apply #'vector
-                                 (mapcar #'car eglot-x-encoding-alist))))))
-    (when eglot-x-enable-snippet-text-edit
-      (let* ((exp (plist-get capabilities :experimental))
-             (old (if (eq exp eglot--{}) '() exp))
-             (new (plist-put old :snippetTextEdit t)))
-        (setq capabilities (plist-put capabilities :experimental new))))
-    (when eglot-x-enable-server-status
-      (let* ((exp (plist-get capabilities :experimental))
-             (old (if (eq exp eglot--{}) '() exp))
-             (new (plist-put old :serverStatusNotification t)))
-        (setq capabilities (plist-put capabilities :experimental new))))
-    (when (boundp 'eglot-menu)
-      (if eglot-x-enable-menu
-          (progn
-            (add-to-list 'eglot-menu
-                         '(eglot-x-sep menu-item "--") t)
-            (add-to-list 'eglot-menu
-                         `(eglot-x menu-item "eglot-x" ,eglot-x-menu) t))
-        (assq-delete-all 'eglot-x-sep eglot-menu)
-        (assq-delete-all 'eglot-x eglot-menu)))
-    capabilities))
-
 (easy-menu-define eglot-x-menu nil "Eglot-x menu"
   `("Eglot-x"
     ["Find additional references" eglot-x-find-refs]
@@ -241,8 +214,72 @@ docs/dev/lsp-extensions.md#server-status"))
      ["Show syntax tree" eglot-x-show-syntax-tree]
      ["View HIR" eglot-x-view-hir]
      ["View item tree" eglot-x-view-item-tree]
-     ["Show memory usage" eglot-x-memory-usage])))
+     ["Show memory usage" eglot-x-memory-usage])
+    ("taplo commands"
+     :visible (equal "Taplo"
+                     (plist-get (eglot--server-info (eglot-current-server))
+                                :name))
+     ["Show info about associated schema" eglot-x-taplo-show-associated-schema]
+     ["Find associated schema" eglot-x-taplo-find-associated-schema]
+     ["List schemas" eglot-x-taplo-list-schemas])))
 
+(cl-defmethod eglot-client-capabilities :around
+  (_s)
+  "Extend client with non-standard capabilities."
+  (let ((capabilities (copy-tree (cl-call-next-method))))
+    (when eglot-x-enable-files
+      (setq capabilities (append capabilities
+                                 (list :xfilesProvider t
+                                       :xcontentProvider t))))
+    (when eglot-x-enable-encoding-negotiation
+      (add-hook 'eglot-managed-mode-hook
+                #'eglot-x--encoding-configure)
+      (setq capabilities
+            (append capabilities
+                    (list :offsetEncoding
+                          (apply #'vector
+                                 (mapcar #'car eglot-x-encoding-alist))))))
+    (when eglot-x-enable-snippet-text-edit
+      (let* ((exp (plist-get capabilities :experimental))
+             (old (if (eq exp eglot--{}) '() exp))
+             (new (plist-put old :snippetTextEdit t)))
+        (setq capabilities (plist-put capabilities :experimental new))))
+    (when eglot-x-enable-server-status
+      (let* ((exp (plist-get capabilities :experimental))
+             (old (if (eq exp eglot--{}) '() exp))
+             (new (plist-put old :serverStatusNotification t)))
+        (setq capabilities (plist-put capabilities :experimental new))))
+    (when (boundp 'eglot-menu)
+      (if eglot-x-enable-menu
+          (progn
+            (add-to-list 'eglot-menu
+			 '(eglot-x-sep menu-item "--") t)
+            (add-to-list 'eglot-menu
+			 `(eglot-x menu-item "eglot-x" ,eglot-x-menu) t))
+	(assq-delete-all 'eglot-x-sep eglot-menu)
+	(assq-delete-all 'eglot-x eglot-menu)))
+    (when eglot-x-enable-ff-related-file-integration
+      (add-hook 'eglot-managed-mode-hook
+                #'eglot-x--configure-ff-related-file-alist))
+    capabilities))
+
+(defvar ff-other-file-alist)
+(declare-function ff-string-match "find-file")
+;; Should be in `eglot-managed-mode-hook'.
+;;
+;; There's a clangd extension we could use here as well, but it is
+;; less capable than the default `ff-find-related-file'.  See
+;; https://clangd.llvm.org/extensions.html#switch-between-sourceheader
+(defun eglot-x--configure-ff-related-file-alist ()
+  (if (and (eglot-managed-p)
+           eglot-x-enable-ff-related-file-integration
+	   (require 'find-file nil t))
+      (let ((alist '((".toml" eglot-x--taplo-ff-related-file)
+                     (".rs" eglot-x--rust-ff-related-file)))
+            (fname (buffer-file-name)))
+        (when (cl-loop for item in alist
+                       thereis (ff-string-match (car item) fname))
+          (eglot--setq-saving ff-other-file-alist alist)))))
 
 ;;; Files extension
 ;;
@@ -389,6 +426,8 @@ assumed to be an element of `project-files'."
       ("declaration"     eglot-find-declaration)
       ("implementation"  eglot-find-implementation)
       ("type definition" eglot-find-typeDefinition)))
+    ("Taplo" .
+     (("Find-associated-schema" eglot-x-taplo-find-associated-schema)))
     (t .
        (("declaration"     eglot-find-declaration)
         ("implementation"  eglot-find-implementation)
@@ -1553,6 +1592,100 @@ Or the first hint of the active region."
                         (setq inserted t)))))
              when inserted return nil
              finally do (user-error "[eglot-x] Server sent no inlay hints"))))
+
+(defun eglot-x--rust-ff-related-file (filename)
+  ;; Instead of using eglot--lsp-xref-helper (and xref), send the
+  ;; request directely.
+  (with-current-buffer (get-file-buffer filename)
+    (eglot-x--check-capability :experimental :openCargoToml)
+    (let* ((res
+            (jsonrpc-request (eglot--current-server-or-lose)
+                             :experimental/openCargoToml
+                             `(:textDocument ,(eglot--TextDocumentIdentifier))))
+           (related-file (eglot--uri-to-path (plist-get res :uri))))
+      (if (string= "" related-file)
+          (list "Cargo.toml")
+        (find-file-noselect related-file) ; See Emacs bug#57325.
+        (list related-file)))))
+
+;;; taplo extensions
+
+(defun eglot-x--taplo-show-schemas (schemas)
+  (with-help-window (help-buffer)
+    (with-current-buffer (help-buffer)
+      (dolist (schema schemas)
+        (goto-char (point-max))
+        (json-insert schema))
+      (json-pretty-print-buffer-ordered))))
+
+(defun eglot-x--uri-to-path (url)
+  "Convert URL to file path, helped by `eglot--current-server'.
+As opposed to `eglot--uri-to-path', return nil if the url-scheme
+is not 'file'."
+  ;; See https://github.com/joaotavora/eglot/pull/854
+  (when url
+    (let ((parsed-url (url-generic-parse-url (url-unhex-string url))))
+      (when (string-equal "file" (downcase (url-type parsed-url)))
+        (eglot--uri-to-path url)))))
+
+(defun eglot-x--taplo-get-associated-schema (&optional as-filename)
+  "Return the associated schema for the current buffer.
+If AS-FILENAME is non-nil, only return the filename of the schema."
+  (let ((schema (jsonrpc-request (eglot--current-server-or-lose)
+                                 :taplo/associatedSchema
+                                 `(:documentUri
+                                   ,(cadr (eglot--TextDocumentIdentifier))))))
+    (if as-filename
+        (let ((url (plist-get (plist-get schema :schema) :url)))
+          (eglot-x--uri-to-path url))
+      schema)))
+
+(defun eglot-x-taplo-show-associated-schema ()
+  "Show info of the schema associated with the current buffer."
+  (interactive)
+  (let ((schema (eglot-x--taplo-get-associated-schema)))
+    (if schema
+        (eglot-x--taplo-show-schemas (list schema))
+      (eglot--message "Server returned no schema."))))
+
+(defun eglot-x-taplo-find-associated-schema ()
+  "Open the schema associated with the current buffer.
+Use `browse-url' for non-local schemas."
+  (interactive)
+  (let* ((schema (eglot-x--taplo-get-associated-schema))
+         (url (plist-get (plist-get schema :schema) :url))
+         (file (eglot-x--uri-to-path url)))
+    (if file
+        (find-file file)
+      (if url
+          (browse-url url)
+        (eglot--message "Server returned no schema.")))))
+
+(defun eglot-x-taplo-list-schemas ()
+  "List schemas the taplo server knows about."
+  (interactive)
+  (let ((res
+          (jsonrpc-request (eglot--current-server-or-lose)
+                           :taplo/listSchemas
+                           `(:documentUri ,(cadr (eglot--TextDocumentIdentifier))))))
+    (if res
+        (eglot-x--taplo-show-schemas (cdr res))
+      (eglot--message "Server returned no schema."))))
+
+(defun eglot-x--taplo-ff-related-file (filename)
+  "Find-function for `ff-other-file-alist'."
+  (let (related-file)
+    (with-current-buffer (find-file-noselect filename)
+      (when-let* ((server (eglot-current-server))
+                  (server-name (plist-get (eglot--server-info server) :name)))
+        (when (equal server-name "Taplo")
+          (setq related-file (eglot-x--taplo-get-associated-schema t)))))
+    (if (not related-file)
+        (list (concat (file-name-base filename) ".json"))
+      ;; `ff-get-file' expects a buffer visiting the file that we
+      ;; return.
+      (find-file-noselect related-file) ; See Emacs bug#57325.
+      (list related-file))))
 
 (provide 'eglot-x)
 ;;; eglot-x.el ends here
