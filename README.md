@@ -118,6 +118,8 @@ positions.
 - [Expand Macro]: see defun `eglot-x-expand-macro`.
 - [Related Tests]: see defun `eglot-x-ask-related-tests`.
 - [Reload Workspace]: see defun `eglot-x-reload-workspace`.
+- [Flycheck commands]: see defuns `eglot-x-run-flycheck`, `eglot-x-clear-flycheck`,
+  and `eglot-x-cancel-flycheck`.
 - [View Crate Graph]: see variable `eglot-x-graph-type` and defun `eglot-x-view-crate-graph`.
 
   ![crate-graph](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/view-crate-graph.png)
@@ -165,6 +167,7 @@ See the documentation of `eglot-x-enable-ff-related-file-integration`.
 [Open External Documentation]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#open-external-documentation
 [Related Tests]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#related-tests
 [Reload Workspace]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#reload-workspace
+[Flycheck commands]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#controlling-flycheck
 [Runnables]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#runnables
 [Server Status]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#server-status
 [Snippet TextEdits]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#snippet-textedit

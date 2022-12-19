@@ -207,6 +207,10 @@ manages .toml files, or (ii) the rust-analyzer LSP server manages
      ["Ask related tests" eglot-x-ask-related-tests]
      ["Find workspace symbol" eglot-x-find-workspace-symbol]
      ["Expand macro" eglot-x-expand-macro]
+     ("Flycheck"
+      ["Run flycheck" eglot-x-run-flycheck]
+      ["Clear flycheck" eglot-x-clear-flycheck]
+      ["Cancel flycheck" eglot-x-cancel-flycheck])
      ["View crate graph" eglot-x-view-crate-graph]
      "--"
      ["Reload workspace" eglot-x-reload-workspace]
@@ -1088,6 +1092,31 @@ For debugging purposes."
     ;;(setq eglot--cached-server server)
     ;;(eglot--managed-mode)
     (view-mode)))
+
+;;; rust-analyzer: Controlling Flycheck
+;;
+;; https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#controlling-flycheck
+
+(defun eglot-x-run-flycheck (arg)
+  "Start a manual flycheck for the current buffer when checkOnSave is disabled.
+With prefix arg start all flycheck processes."
+  (interactive "P")
+  (jsonrpc-notify (eglot-current-server)
+                  :rust-analyzer/runFlycheck
+                  `(:textDocument ,(if arg
+                                       nil
+                                     (eglot--TextDocumentIdentifier)))))
+
+(defun eglot-x-clear-flycheck ()
+  "Clear the flycheck diagnostics."
+  (interactive)
+  (jsonrpc-notify (eglot-current-server) :rust-analyzer/clearFlycheck nil))
+
+
+(defun eglot-x-cancel-flycheck ()
+  "Cancel all running flycheck processes."
+  (interactive)
+  (jsonrpc-notify (eglot-current-server) :rust-analyzer/cancelFlycheck nil))
 
 ;;; (Memory Usage) -- this is not documented in lsp-extensions.md
 
