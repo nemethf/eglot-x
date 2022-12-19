@@ -181,6 +181,8 @@ manages .toml files, or (ii) the rust-analyzer LSP server manages
 ;;
 (easy-menu-define eglot-x-menu nil "Eglot-x menu"
   `("Eglot-x"
+    ["Customize Eglot-x" (lambda () (interactive) (customize-group "eglot-x"))]
+    "--"
     ["Find additional references" eglot-x-find-refs]
     ["Join lines" eglot-x-join-lines
      :visible (eglot--server-capable :experimental :joinLines)]
