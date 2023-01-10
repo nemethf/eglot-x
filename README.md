@@ -111,6 +111,14 @@ positions.
 - [Server Status]: see variable `eglot-x-enable-server-status`.
   The mode-line displays the status unless it is "permanently OK".
 
+- [Colored diagnostics]: see variable `eglot-x-enable-colored-diagnostics`.
+
+  `flymake-goto-next-error' shows a colored diagnostic message:
+
+  ![colored-diags](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/colored-diags.png)
+
+  (The ansi-color.el of Emacs 27 is too old for this feature, Emacs 29 is OK.)
+
 - [Inlay Hints]: for an initial, basic support see defun
   `eglot-x-insert-inlay-hint-at-point`.
 

@@ -40,6 +40,7 @@
 
 (require 'eglot)
 (require 'project)
+(require 'text-property-search)
 
 
 ;;; Customization
@@ -166,6 +167,14 @@ docs/dev/lsp-extensions.md#server-status"))
           :tag "documentation of rust-analyzer"
           "https://rust-analyzer.github.io/manual.html#view-crate-graph"))
 
+(defcustom eglot-x-enable-colored-diagnostics t
+  "If non-nil, enable colored diagnostic support for rust-analyzer."
+  :type 'boolean
+  :link '(url-link
+          :tag "the definition of the extension (rust-analyzer)"
+          "https://github.com/rust-lang/rust-analyzer/blob/master/\
+docs/dev/lsp-extensions.md#colored-diagnostic-output"))
+
 (defcustom eglot-x-enable-ff-related-file-integration t
   "If non-nil, integrate eglot-x with `ff-find-related-file'.
 
@@ -254,6 +263,11 @@ manages .toml files, or (ii) the rust-analyzer LSP server manages
       (let* ((exp (plist-get capabilities :experimental))
              (old (if (eq exp eglot--{}) '() exp))
              (new (plist-put old :serverStatusNotification t)))
+        (setq capabilities (plist-put capabilities :experimental new))))
+    (when eglot-x-enable-colored-diagnostics
+      (let* ((exp (plist-get capabilities :experimental))
+             (old (if (eq exp eglot--{}) '() exp))
+             (new (plist-put old :colorDiagnosticOutput t)))
         (setq capabilities (plist-put capabilities :experimental new))))
     (when (boundp 'eglot-menu)
       (if eglot-x-enable-menu
@@ -1589,6 +1603,41 @@ This is in contrast to merely setting it to 0."
   "Handle notification experimental/serverStatus."
   (eglot-x--put-in-server server :server-status (list health quiescent message))
   (force-mode-line-update))
+
+;;; colorDiagnosticOutput
+(defun eglot-x--ansi-color-apply (string)
+  "Translates SGR control sequences into text properties.
+It is the same as `ansi-color-apply', but it also sets face
+text-properties besides font-lock-face properties."
+  ;; This is necessary because flymake uses `message' and message
+  ;; ignores font-lock-face properties, but displays face properties.
+  ;; (info "(elisp)Displaying Messages")
+  (with-temp-buffer
+    (insert (ansi-color-apply string))
+    (goto-char (point-min))
+    (let (match)
+      (while (setq match (text-property-search-forward 'font-lock-face nil nil))
+        (add-text-properties
+         (prop-match-beginning match)
+         (prop-match-end match)
+         `(face ,(get-text-property (prop-match-beginning match)
+                                    'font-lock-face))))
+      (buffer-string))))
+
+(cl-defmethod eglot-handle-notification :before
+  (_server (_method (eql textDocument/publishDiagnostics)) &rest args)
+  "Change messages in diagnostics.
+See `eglot-x-enable-colored-diagnostics'."
+  (when eglot-x-enable-colored-diagnostics
+    (let ((diags
+           (cl-loop
+            for diag-spec across (plist-get args :diagnostics)
+            collect
+            (if-let ((rendered (plist-get (plist-get diag-spec :data) :rendered)))
+                (plist-put diag-spec :message
+                           (eglot-x--ansi-color-apply rendered))
+              diag-spec))))
+      (setq args (plist-put args :diagnostics diags)))))
 
 ;;; Inlay Hints
 (defun eglot-x-insert-inlay-hint-at-point ()
