@@ -1,12 +1,12 @@
 ;;; eglot-x.el --- Protocol extensions for Eglot  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2023 Free Software Foundation, Inc.
 
 ;; Version: 0.4
 ;; Author: Felicián Németh <felician.nemeth@gmail.com>
 ;; URL: https://github.com/nemethf/eglot-x
 ;; Keywords: convenience, languages
-;; Package-Requires: ((emacs "27.1") (project "0.8.1") (eglot "1.8") (xref "1.4"))
+;; Package-Requires: ((emacs "27.1") (project "0.8.1") (eglot "1.13") (xref "1.4"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -92,7 +92,7 @@ It has precedence over `eglot-x-files-visible-regexp'."
 The command `eglot-x-find-refs' is the entry point for the extra
 methods.  You can bind it to a key:
 
-    (define-key eglot-mode-map (kbd \"s-.\") #'eglot-x-find-refs)
+    (define-key eglot-mode-map (kbd \"s-.\") #\\='eglot-x-find-refs)
 
 Currently, the `ccls' and `rust-analyzer' are the only servers
 whose extra reference methods eglot-x supports.
@@ -666,7 +666,7 @@ it handles the SnippetTextEdit format."
 ;;; Join Lines
 
 (defun eglot-x-join-lines (&optional beg end)
-  "Request the server to handle 'Join Lines' editor action."
+  "Request the server to handle \"Join Lines\" editor action."
   (interactive (and (region-active-p) (list (region-beginning) (region-end))))
   (eglot-x--check-capability :experimental :joinLines)
   (let ((res
@@ -718,7 +718,7 @@ TextEdits.  This variable defines what function to call in that
 case.")
 
 (defun eglot-x-on-enter (&optional arg interactive)
-  "Request the server to handle the 'Enter' keypress."
+  "Request the server to handle the \"Enter\" keypress."
   (interactive "*P\np")
   (eglot-x--check-capability :experimental :onEnter)
   (let ((res
@@ -749,8 +749,8 @@ case.")
 ;;; Open External Documentation
 
 (defun eglot-x-open-external-documentation ()
-  (interactive)
   "Open a URL to the documentation for the symbol under point."
+  (interactive)
   (eglot-x--check-capability :experimental :externalDocs)
   (let ((res (jsonrpc-request (eglot--current-server-or-lose)
                               :experimental/externalDocs
@@ -828,9 +828,9 @@ on rust-analyzer itself."
 ;;; View Hir
 
 (defun eglot-x-view-hir ()
-  (interactive)
   "Show textual representation of the HIR of the function containing point.
 For debugging or when working on rust-analyzer itself."
+  (interactive)
   (let ((res (jsonrpc-request (eglot--current-server-or-lose)
                               :rust-analyzer/viewHir
                               (eglot--TextDocumentPositionParams))))
@@ -841,9 +841,9 @@ For debugging or when working on rust-analyzer itself."
 ;;; View ItemTree
 
 (defun eglot-x-view-item-tree ()
-  (interactive)
   "Show a textual representation of the ItemTree of current file.
 It is for debugging rust-analyzer."
+  (interactive)
   (let ((res
          (jsonrpc-request (eglot--current-server-or-lose)
                           :rust-analyzer/viewItemTree
@@ -1661,7 +1661,7 @@ See `eglot-x-enable-colored-diagnostics'."
 (defun eglot-x--uri-to-path (url)
   "Convert URL to file path, helped by `eglot--current-server'.
 As opposed to `eglot--uri-to-path', return nil if the url-scheme
-is not 'file'."
+is not \"file\"."
   ;; See https://github.com/joaotavora/eglot/pull/854
   (when url
     (let ((parsed-url (url-generic-parse-url (url-unhex-string url))))
