@@ -209,8 +209,6 @@ manages .toml files, or (ii) the rust-analyzer LSP server manages
      :visible (eglot--server-capable :experimental :ssr)]
     ["Ask Runnables" eglot-x-ask-runnables
      :visible (eglot--server-capable :experimental :runnables)]
-    ["Insert inlay hint at point" eglot-x-insert-inlay-hint-at-point
-     :visible (eglot--server-capable :experimental :inlayHints)]
     ("rust-analyzer commands"
      :visible (equal "rust-analyzer"
                      (plist-get (eglot--server-info (eglot-current-server))
@@ -560,16 +558,12 @@ See `eglot-x-enable-refs'."
 ;;     - This is in the standard: https://github.com/joaotavora/eglot/discussions/845
 ;;   Hover Actions
 ;;   Hover Range
-;;   Inlay Hints
 
 (defun eglot-x--check-capability (&rest capabilities)
   (unless (apply #'eglot--server-capable capabilities)
     (eglot--error "Server lacks capability: %s" capabilities)))
 
 (eval-and-compile
-  (push '(InlayHint
-          ((:label :position) (:kind :tooltip :padding_left :padding_right)))
-        eglot--lsp-interface-alist)
   ;; This is an unnamed type within WorkspaceSymbol/location
   (push '(Runnable
           ((:label kind args) (location)))
@@ -1638,40 +1632,6 @@ See `eglot-x-enable-colored-diagnostics'."
                            (eglot-x--ansi-color-apply rendered))
               diag-spec))))
       (setq args (plist-put args :diagnostics diags)))))
-
-;;; Inlay Hints
-(defun eglot-x-insert-inlay-hint-at-point ()
-  "Request and insert inlay-hint for symbol at point.
-Or the first hint of the active region."
-  (interactive)
-  (eglot-x--check-capability :experimental :inlayHints)
-  (pcase-let*
-      ((insert-pos (cdr (bounds-of-thing-at-point 'symbol)))
-       (`(,beg . ,end)
-        (if (region-active-p)
-            (cons (region-beginning) (region-end))
-          ;; Rust-analyzer only sends the hint if the region contains
-          ;; "mut n" in "let mut n = 5;", so bounds-of-thing-at-point
-          ;; doesn't work here.
-          (cons (line-beginning-position) (line-end-position))))
-       (res
-        (jsonrpc-request (eglot--current-server-or-lose)
-                         :experimental/inlayHints
-                         `(:range ,(list :start (eglot--pos-to-lsp-position beg)
-                                         :end (eglot--pos-to-lsp-position end))
-                                  :textDocument ,(eglot--TextDocumentIdentifier))))
-       (inserted nil))
-    (cl-loop for hint in (append res nil)
-             do (eglot--dbind ((InlayHint) label position) hint
-                  (let ((pos (eglot--lsp-position-to-point position)))
-                    (when (or (eq insert-pos pos)
-                              (region-active-p))
-                      (save-excursion
-                        (goto-char pos)
-                        (insert label)
-                        (setq inserted t)))))
-             when inserted return nil
-             finally do (user-error "[eglot-x] Server sent no inlay hints"))))
 
 (defun eglot-x--rust-ff-related-file (filename)
   ;; Instead of using eglot--lsp-xref-helper (and xref), send the

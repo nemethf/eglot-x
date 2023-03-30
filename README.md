@@ -119,9 +119,6 @@ positions.
 
   (The ansi-color.el of Emacs 27 is too old for this feature, Emacs 29 is OK.)
 
-- [Inlay Hints]: for an initial, basic support see defun
-  `eglot-x-insert-inlay-hint-at-point`.
-
 ### rust-analyzer specific extensions
 - [Expand Macro]: see defun `eglot-x-expand-macro`.
 - [Related Tests]: see defun `eglot-x-ask-related-tests`.
@@ -168,7 +165,6 @@ See the documentation of `eglot-x-enable-ff-related-file-integration`.
 [Analyzer Status]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#analyzer-status
 [Colored diagnostics]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#colored-diagnostic-output
 [Expand Macro]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#expand-macro
-[Inlay Hints]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#inlay-hints
 [Join Lines]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#join-lines
 [Matching Brace]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#matching-brace
 [Move Item]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#move-item
