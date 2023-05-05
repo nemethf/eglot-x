@@ -24,13 +24,17 @@
 ;;; Commentary:
 
 ;; Eglot supports (a subset of) the Language Server Protocol.
-;; However, there are useful protocol extensions that are not (yet)
-;; part of the official protocol specification.  Eglot-x adds support
-;; for some of them.
+;; However, there are useful protocol extensions that are not part of
+;; the official protocol specification.  Eglot-x adds support for some
+;; of them.  If you find a bug in Eglot, please, try to repoduce it
+;; without Eglot-x, because Eglot-x is substantially modifies Eglot's
+;; normal behavior as well.
 ;;
-;; Add the following line to your init file to enable eglot-x
+;; Add the following lines to your init file to enable eglot-x
 ;;
-;;     (with-eval-after-load 'eglot (require 'eglot-x))
+;;      (with-eval-after-load 'eglot
+;;        (require 'eglot-x)
+;;        (eglot-x-setup))
 ;;
 ;; To adjust which extensions are enabled:
 ;;
@@ -106,7 +110,8 @@ whose extra reference methods eglot-x supports.
   "If non-nil, automatically negotiate proper encoding of positions.
 
 The extension allows the client and the server to negotiate a
-proper encoding to be used in transmitting column positions.
+proper encoding to be used in transmitting column positions.  It
+predates the standardized positionEncodings capability.
 
 `eglot-x-encoding-alist' defines the details of the client's
 behavior."
@@ -188,6 +193,51 @@ manages .toml files, or (ii) the rust-analyzer LSP server manages
 
 ;;; Enable the extensions
 ;;
+(defvar eglot-x--enabled nil)
+
+(defun eglot-x-setup ()
+  "Set up eglot-x to extend Eglot's feature-set.
+Call it when there are no active LSP servers."
+  (interactive)
+  (setq eglot-x--enabled t)
+  ;; defuns containing file-remote-p
+  (advice-add 'eglot--cmd     :around #'eglot-x--disable-built-in-tramp)
+  (advice-add 'eglot--connect :around #'eglot-x--disable-built-in-tramp)
+  (advice-add 'eglot--path-to-uri :around #'eglot-x--disable-built-in-tramp)
+  (advice-add 'eglot--uri-to-path :around #'eglot-x--disable-built-in-tramp)
+  ;; defuns containing file-local-name (but not file-remote-p)
+  (advice-add 'eglot--connect :around #'eglot-x--disable-built-in-tramp)
+  ;; others
+  (advice-add 'eglot--connect :around #'eglot-x--encoding-enable-hack)
+  (advice-add 'jsonrpc--async-request-1 :filter-args
+              #'eglot-x--encoding-mod-async-request)
+  (advice-add #'eglot--apply-text-edits :around #'eglot-x--override-text-edits)
+  (advice-add #'eglot--server-info :filter-return #'eglot-x--remove-hidden-info)
+  (advice-add #'eglot--mode-line-format :filter-return
+              #'eglot-x--hack-mode-line-format))
+
+(defun eglot-x-disable ()
+  "Disable eglot-x.
+Some features will not be completely disabled for on-going LSP
+connections."
+  (interactive)
+  (setq eglot-x--enabled nil)
+  ;; defuns containing file-remote-p
+  (advice-remove 'eglot--cmd         #'eglot-x--disable-built-in-tramp)
+  (advice-remove 'eglot--connect     #'eglot-x--disable-built-in-tramp)
+  (advice-remove 'eglot--path-to-uri #'eglot-x--disable-built-in-tramp)
+  (advice-remove 'eglot--uri-to-path #'eglot-x--disable-built-in-tramp)
+  ;; defuns containing file-local-name (but not file-remote-p)
+  (advice-remove 'eglot--connect     #'eglot-x--disable-built-in-tramp)
+  ;; others
+  (advice-remove 'eglot--connect #'eglot-x--encoding-enable-hack)
+  (advice-remove 'jsonrpc--async-request-1
+                 #'eglot-x--encoding-mod-async-request)
+  (advice-remove #'eglot--apply-text-edits #'eglot-x--override-text-edits)
+  (advice-remove #'eglot--server-info  #'eglot-x--remove-hidden-info)
+  (advice-remove #'eglot--mode-line-format
+                 #'eglot-x--hack-mode-line-format))
+
 (easy-menu-define eglot-x-menu nil "Eglot-x menu"
   `("Eglot-x"
     ["Customize Eglot-x" (lambda () (interactive) (customize-group "eglot-x"))]
@@ -239,47 +289,49 @@ manages .toml files, or (ii) the rust-analyzer LSP server manages
 (cl-defmethod eglot-client-capabilities :around
   (_s)
   "Extend client with non-standard capabilities."
-  (let ((capabilities (copy-tree (cl-call-next-method))))
-    (when eglot-x-enable-files
-      (setq capabilities (append capabilities
-                                 (list :xfilesProvider t
-                                       :xcontentProvider t))))
-    (when eglot-x-enable-encoding-negotiation
-      (add-hook 'eglot-managed-mode-hook
-                #'eglot-x--encoding-configure)
-      (setq capabilities
-            (append capabilities
-                    (list :offsetEncoding
-                          (apply #'vector
-                                 (mapcar #'car eglot-x-encoding-alist))))))
-    (when eglot-x-enable-snippet-text-edit
-      (let* ((exp (plist-get capabilities :experimental))
-             (old (if (eq exp eglot--{}) '() exp))
-             (new (plist-put old :snippetTextEdit t)))
-        (setq capabilities (plist-put capabilities :experimental new))))
-    (when eglot-x-enable-server-status
-      (let* ((exp (plist-get capabilities :experimental))
-             (old (if (eq exp eglot--{}) '() exp))
-             (new (plist-put old :serverStatusNotification t)))
-        (setq capabilities (plist-put capabilities :experimental new))))
-    (when eglot-x-enable-colored-diagnostics
-      (let* ((exp (plist-get capabilities :experimental))
-             (old (if (eq exp eglot--{}) '() exp))
-             (new (plist-put old :colorDiagnosticOutput t)))
-        (setq capabilities (plist-put capabilities :experimental new))))
-    (when (boundp 'eglot-menu)
-      (if eglot-x-enable-menu
-          (progn
-            (add-to-list 'eglot-menu
-			 '(eglot-x-sep menu-item "--") t)
-            (add-to-list 'eglot-menu
-			 `(eglot-x menu-item "eglot-x" ,eglot-x-menu) t))
-	(assq-delete-all 'eglot-x-sep eglot-menu)
-	(assq-delete-all 'eglot-x eglot-menu)))
-    (when eglot-x-enable-ff-related-file-integration
-      (add-hook 'eglot-managed-mode-hook
-                #'eglot-x--configure-ff-related-file-alist))
-    capabilities))
+  (if (not eglot-x--enabled)
+      (cl-call-next-method)
+    (let ((capabilities (copy-tree (cl-call-next-method))))
+      (when eglot-x-enable-files
+        (setq capabilities (append capabilities
+                                   (list :xfilesProvider t
+                                         :xcontentProvider t))))
+      (when eglot-x-enable-encoding-negotiation
+        (add-hook 'eglot-managed-mode-hook
+                  #'eglot-x--encoding-configure)
+        (setq capabilities
+              (append capabilities
+                      (list :offsetEncoding
+                            (apply #'vector
+                                   (mapcar #'car eglot-x-encoding-alist))))))
+      (when eglot-x-enable-snippet-text-edit
+        (let* ((exp (plist-get capabilities :experimental))
+               (old (if (eq exp eglot--{}) '() exp))
+               (new (plist-put old :snippetTextEdit t)))
+          (setq capabilities (plist-put capabilities :experimental new))))
+      (when eglot-x-enable-server-status
+        (let* ((exp (plist-get capabilities :experimental))
+               (old (if (eq exp eglot--{}) '() exp))
+               (new (plist-put old :serverStatusNotification t)))
+          (setq capabilities (plist-put capabilities :experimental new))))
+      (when eglot-x-enable-colored-diagnostics
+        (let* ((exp (plist-get capabilities :experimental))
+               (old (if (eq exp eglot--{}) '() exp))
+               (new (plist-put old :colorDiagnosticOutput t)))
+          (setq capabilities (plist-put capabilities :experimental new))))
+      (when (boundp 'eglot-menu)
+        (if eglot-x-enable-menu
+            (progn
+              (add-to-list 'eglot-menu
+			   '(eglot-x-sep menu-item "--") t)
+              (add-to-list 'eglot-menu
+			   `(eglot-x menu-item "eglot-x" ,eglot-x-menu) t))
+	  (assq-delete-all 'eglot-x-sep eglot-menu)
+	  (assq-delete-all 'eglot-x eglot-menu)))
+      (when eglot-x-enable-ff-related-file-integration
+        (add-hook 'eglot-managed-mode-hook
+                  #'eglot-x--configure-ff-related-file-alist))
+      capabilities)))
 
 (defvar ff-other-file-alist)
 (declare-function ff-string-match "find-file")
@@ -310,14 +362,6 @@ manages .toml files, or (ii) the rust-analyzer LSP server manages
                 (file-local-name (file) file))
         (apply orig-fun args))
     (apply orig-fun args)))
-;; defuns containing file-remote-p
-(advice-add 'eglot--cmd     :around #'eglot-x--disable-built-in-tramp)
-(advice-add 'eglot--connect :around #'eglot-x--disable-built-in-tramp)
-(advice-add 'eglot--path-to-uri :around #'eglot-x--disable-built-in-tramp)
-(advice-add 'eglot--uri-to-path :around #'eglot-x--disable-built-in-tramp)
-;; defuns containing file-local-name (but not file-remote-p)
-(advice-add 'eglot--connect :around #'eglot-x--disable-built-in-tramp)
-
 
 (defun eglot-x--path-to-TextDocumentIdentifier (path)
   "Convert PATH to TextDocumentIdentifier."
@@ -475,7 +519,7 @@ See `eglot-x-enable-refs'."
 
 
 ;;; Encoding negotiation
-;; https://clangd.github.io/extensions.html#utf-8-offsets
+;; https://clangd.llvm.org/extensions.html#utf-8-offsets
 
 ;; Eglot does not save the full InitializeResult response of the
 ;; server, so the following chain of advised functions copies the
@@ -486,7 +530,7 @@ See `eglot-x-enable-refs'."
 (defun eglot-x--encoding-enable-hack (orig-fun &rest args)
   (let ((eglot-x--encoding-hack t))
     (apply orig-fun args)))
-(advice-add 'eglot--connect :around #'eglot-x--encoding-enable-hack)
+;(advice-add 'eglot--connect :around #'eglot-x--encoding-enable-hack)
 
 (defun eglot-x--encoding-mod-async-request (args)
   (if (not eglot-x--encoding-hack)
@@ -500,8 +544,8 @@ See `eglot-x-enable-refs'."
            (plist (and plist
                        (plist-put plist :success-fn success-fn))))
       `(,@head ,@plist))))
-(advice-add 'jsonrpc--async-request-1 :filter-args
-            #'eglot-x--encoding-mod-async-request)
+;(advice-add 'jsonrpc--async-request-1 :filter-args
+;            #'eglot-x--encoding-mod-async-request)
 
 (defun eglot-x--encoding-mod-result (result)
   "If RESULT is initializationOptions, copy offsetEncoding into capabilities."
@@ -546,7 +590,6 @@ See `eglot-x-enable-refs'."
 ;; https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md
 
 ;; Implemented elsewhere
-;;   - UTF-8 offsets: see variable `eglot-x-enable-encoding-negotiation'.
 ;;   - Parent Module: implemented in `eglot-x-find-refs'.
 ;;   - Open Cargo.toml: implemented in `eglot-x-find-refs'.
 
@@ -661,7 +704,7 @@ it handles the SnippetTextEdit format."
       (apply #'eglot-x--apply-text-edits r)
     (apply oldfun r)))
 
-(advice-add #'eglot--apply-text-edits :around #'eglot-x--override-text-edits)
+;(advice-add #'eglot--apply-text-edits :around #'eglot-x--override-text-edits)
 
 ;;; Join Lines
 
@@ -989,6 +1032,10 @@ dependencies as well as sysroot crates).  See variable
   ;;       rust-analyzer is to send class attributes. Eg:
   ;;       [class="library"], [class="workspace"].
   ;;
+  ;; dot -Timap -oa.map -Tsvg -oa.svg a.dot ; cat a.map
+  ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Image-Descriptors.html
+  ;; https://graphviz.org/docs/outputs/imap/
+  ;; (progn (info "(elisp)Image Descriptors") (Info-index "image maps"))
   (let* ((src-buf (current-buffer))
          (image-format (if (not image-format)
                            eglot-x-graph-type
@@ -1351,6 +1398,50 @@ See `eglot-x--replace' for the description of RDATA, and
       (when timer
         (cancel-timer timer)))))
 
+(defun eglot-x--xref-make-match (name uri range summary)
+  "Like `xref-make-match' but with LSP's NAME, URI and RANGE.
+Try to visit the target file for a richer summary line.
+If NAME is not found in RANGE, use SUMMARY as a summary."
+  (pcase-let*
+      ((file (eglot--uri-to-path uri))
+       (visiting (or (find-buffer-visiting file)
+                     (gethash uri eglot--temp-location-buffers)))
+       (collect (lambda ()
+                  (eglot--widening
+                   (pcase-let* ((`(,beg . ,end) (eglot--range-region range))
+                                (contains (progn
+                                            (goto-char beg)
+                                            (when (re-search-forward name end t)
+                                                (setq beg (match-beginning 0))
+                                                (setq end (match-end 0)))))
+                                (bol (progn (goto-char beg) (point-at-bol)))
+                                (substring (buffer-substring bol (point-at-eol)))
+                                (hi-beg (- beg bol))
+                                (hi-end (- (min (point-at-eol) end) bol)))
+                     (add-face-text-property hi-beg hi-end 'xref-match
+                                             t substring)
+                     (list (if contains (format "%s:%s" summary substring) summary)
+                           (1+ (current-line))
+                           (funcall eglot-current-linepos-function)
+                           (- end beg))))))
+       (`(,summary ,line ,column ,length)
+        (cond
+         (visiting (with-current-buffer visiting (funcall collect)))
+         ((file-readable-p file) (with-current-buffer
+                                     (puthash uri (generate-new-buffer " *temp*")
+                                              eglot--temp-location-buffers)
+                                   (insert-file-contents file)
+                                   (funcall collect)))
+         (t ;; fall back to the "dumb strategy"
+          (let* ((start (cl-getf range :start))
+                 (line (1+ (cl-getf start :line)))
+                 (start-pos (cl-getf start :character))
+                 (end-pos (cl-getf (cl-getf range :end) :character)))
+            (list name line start-pos (- end-pos start-pos)))))))
+    (setf (gethash (expand-file-name file) eglot--servers-by-xrefed-file)
+          (eglot--current-server-or-lose))
+    (xref-make-match summary (xref-make-file-location file line column) length)))
+
 (defun eglot-x--ws-xrefs (pattern)
   "Search for workspace symbols matching PATTERN.
 Adapted from `eglot--lsp-xref-helper'."
@@ -1380,13 +1471,17 @@ Adapted from `eglot--lsp-xref-helper'."
     (eglot--collecting-xrefs (collect)
       (mapc
        (lambda (wss)
-         (eglot--dbind ((WorkspaceSymbol) name location) wss
+         (eglot--dbind ((WorkspaceSymbol) name location containerName) wss
            (eglot--dbind ((LocationWithOptionalRange) uri range) location
              (unless range
                ;; Eglot's helper functions require proper range, xref might not.
                (setq range '(:start (:line 0 :character 0)
-                             :end (:line 0 :character 1))))
-             (collect (eglot--xref-make-match name uri range)))))
+                                    :end (:line 0 :character 1))))
+             (let ((summary (if containerName
+                                (format "%s:%s" containerName name)
+                              name)))
+             (collect (eglot-x--xref-make-match name uri range summary))))))
+             ;;(collect (eglot--xref-make-match name uri range)))))
        (if (vectorp response) response (and response (list response)))))))
 
 (defun eglot-x--find-ws (pattern &optional noerror)
@@ -1566,7 +1661,7 @@ This is in contrast to merely setting it to 0."
     (plist-get (plist-get (eglot--server-info server) :eglot-x)
                prop)))
 
-(advice-add #'eglot--server-info :filter-return #'eglot-x--remove-hidden-info)
+;(advice-add #'eglot--server-info :filter-return #'eglot-x--remove-hidden-info)
 
 (defun eglot-x--hack-mode-line-format (current)
   (pcase-let ((`(,health ,quiescent ,message)
@@ -1588,8 +1683,8 @@ This is in contrast to merely setting it to 0."
                            (_))))
         ,@current))))
 
-(advice-add #'eglot--mode-line-format :filter-return
-            #'eglot-x--hack-mode-line-format)
+;(advice-add #'eglot--mode-line-format :filter-return
+;            #'eglot-x--hack-mode-line-format)
 
 (cl-defmethod eglot-handle-notification
   (server (_method (eql experimental/serverStatus))
@@ -1622,7 +1717,8 @@ text-properties besides font-lock-face properties."
   (_server (_method (eql textDocument/publishDiagnostics)) &rest args)
   "Change messages in diagnostics.
 See `eglot-x-enable-colored-diagnostics'."
-  (when eglot-x-enable-colored-diagnostics
+  (when (and eglot-x--enabled
+             eglot-x-enable-colored-diagnostics)
     (let ((diags
            (cl-loop
             for diag-spec across (plist-get args :diagnostics)

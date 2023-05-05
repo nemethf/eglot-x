@@ -3,12 +3,16 @@
 [Eglot][eglot] supports (a subset of) the Language Server Protocol.
 However, there are useful protocol extensions that are not (yet) part
 of the official protocol specification.  Eglot-x adds support for some
-of them.
+of them.  If you find a bug in Eglot, please, try to repoduce it
+without Eglot-x, because Eglot-x is substantially modifies Eglot's
+normal behavior as well.
 
-Add the following line to your init file to enable eglot-x
+Add the following lines to your init file to enable eglot-x
 
 ```elisp
-    (with-eval-after-load 'eglot (require 'eglot-x))
+    (with-eval-after-load 'eglot
+      (require 'eglot-x)
+      (eglot-x-setup))
 ```
 To adjust which extensions are enabled:
 
