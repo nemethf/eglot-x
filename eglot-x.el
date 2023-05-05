@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2019-2023 Free Software Foundation, Inc.
 
-;; Version: 0.5
+;; Version: 0.6
 ;; Author: Felicián Németh <felician.nemeth@gmail.com>
 ;; URL: https://github.com/nemethf/eglot-x
 ;; Keywords: convenience, languages
@@ -26,7 +26,7 @@
 ;; Eglot supports (a subset of) the Language Server Protocol.
 ;; However, there are useful protocol extensions that are not part of
 ;; the official protocol specification.  Eglot-x adds support for some
-;; of them.  If you find a bug in Eglot, please, try to repoduce it
+;; of them.  If you find a bug in Eglot, please, try to reproduce it
 ;; without Eglot-x, because Eglot-x is substantially modifies Eglot's
 ;; normal behavior as well.
 ;;
@@ -1032,10 +1032,6 @@ dependencies as well as sysroot crates).  See variable
   ;;       rust-analyzer is to send class attributes. Eg:
   ;;       [class="library"], [class="workspace"].
   ;;
-  ;; dot -Timap -oa.map -Tsvg -oa.svg a.dot ; cat a.map
-  ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Image-Descriptors.html
-  ;; https://graphviz.org/docs/outputs/imap/
-  ;; (progn (info "(elisp)Image Descriptors") (Info-index "image maps"))
   (let* ((src-buf (current-buffer))
          (image-format (if (not image-format)
                            eglot-x-graph-type
@@ -1398,50 +1394,6 @@ See `eglot-x--replace' for the description of RDATA, and
       (when timer
         (cancel-timer timer)))))
 
-(defun eglot-x--xref-make-match (name uri range summary)
-  "Like `xref-make-match' but with LSP's NAME, URI and RANGE.
-Try to visit the target file for a richer summary line.
-If NAME is not found in RANGE, use SUMMARY as a summary."
-  (pcase-let*
-      ((file (eglot--uri-to-path uri))
-       (visiting (or (find-buffer-visiting file)
-                     (gethash uri eglot--temp-location-buffers)))
-       (collect (lambda ()
-                  (eglot--widening
-                   (pcase-let* ((`(,beg . ,end) (eglot--range-region range))
-                                (contains (progn
-                                            (goto-char beg)
-                                            (when (re-search-forward name end t)
-                                                (setq beg (match-beginning 0))
-                                                (setq end (match-end 0)))))
-                                (bol (progn (goto-char beg) (point-at-bol)))
-                                (substring (buffer-substring bol (point-at-eol)))
-                                (hi-beg (- beg bol))
-                                (hi-end (- (min (point-at-eol) end) bol)))
-                     (add-face-text-property hi-beg hi-end 'xref-match
-                                             t substring)
-                     (list (if contains (format "%s:%s" summary substring) summary)
-                           (1+ (current-line))
-                           (funcall eglot-current-linepos-function)
-                           (- end beg))))))
-       (`(,summary ,line ,column ,length)
-        (cond
-         (visiting (with-current-buffer visiting (funcall collect)))
-         ((file-readable-p file) (with-current-buffer
-                                     (puthash uri (generate-new-buffer " *temp*")
-                                              eglot--temp-location-buffers)
-                                   (insert-file-contents file)
-                                   (funcall collect)))
-         (t ;; fall back to the "dumb strategy"
-          (let* ((start (cl-getf range :start))
-                 (line (1+ (cl-getf start :line)))
-                 (start-pos (cl-getf start :character))
-                 (end-pos (cl-getf (cl-getf range :end) :character)))
-            (list name line start-pos (- end-pos start-pos)))))))
-    (setf (gethash (expand-file-name file) eglot--servers-by-xrefed-file)
-          (eglot--current-server-or-lose))
-    (xref-make-match summary (xref-make-file-location file line column) length)))
-
 (defun eglot-x--ws-xrefs (pattern)
   "Search for workspace symbols matching PATTERN.
 Adapted from `eglot--lsp-xref-helper'."
@@ -1471,17 +1423,13 @@ Adapted from `eglot--lsp-xref-helper'."
     (eglot--collecting-xrefs (collect)
       (mapc
        (lambda (wss)
-         (eglot--dbind ((WorkspaceSymbol) name location containerName) wss
+         (eglot--dbind ((WorkspaceSymbol) name location) wss
            (eglot--dbind ((LocationWithOptionalRange) uri range) location
              (unless range
                ;; Eglot's helper functions require proper range, xref might not.
                (setq range '(:start (:line 0 :character 0)
-                                    :end (:line 0 :character 1))))
-             (let ((summary (if containerName
-                                (format "%s:%s" containerName name)
-                              name)))
-             (collect (eglot-x--xref-make-match name uri range summary))))))
-             ;;(collect (eglot--xref-make-match name uri range)))))
+                             :end (:line 0 :character 1))))
+             (collect (eglot--xref-make-match name uri range)))))
        (if (vectorp response) response (and response (list response)))))))
 
 (defun eglot-x--find-ws (pattern &optional noerror)

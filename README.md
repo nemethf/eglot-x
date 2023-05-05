@@ -3,7 +3,7 @@
 [Eglot][eglot] supports (a subset of) the Language Server Protocol.
 However, there are useful protocol extensions that are not (yet) part
 of the official protocol specification.  Eglot-x adds support for some
-of them.  If you find a bug in Eglot, please, try to repoduce it
+of them.  If you find a bug in Eglot, please, try to reproduce it
 without Eglot-x, because Eglot-x is substantially modifies Eglot's
 normal behavior as well.
 
