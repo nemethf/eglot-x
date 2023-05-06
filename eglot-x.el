@@ -75,7 +75,7 @@ Enabling extension disables Eglot's built-in support for Tramp
 files."
   :type 'boolean
   :link `(url-link
-          :tag "the documentation of the extesion proposal"
+          :tag "the documentation of the extension proposal"
           ,(concat "https://github.com/sourcegraph/language-server-protocol/"
                    "blob/master/extension-files.md")))
 
