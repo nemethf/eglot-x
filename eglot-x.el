@@ -190,6 +190,15 @@ manages .toml files, or (ii) the rust-analyzer LSP server manages
     :type 'boolean
     :link '(function-link ff-find-related-file)
     :link '(variable-link ff-related-file-alist))
+
+(defcustom eglot-x-enable-local-docs-support t
+  "If non-nil, `eglot-x-open-external-documentation' can receive local links."
+  :type 'boolean
+  :link '(function-link eglot-x-open-external-documentation)
+  :link '(url-link
+          :tag "the definition of the extension (rust-analyzer)"
+          "https://github.com/rust-lang/rust-analyzer/blob/master/\
+docs/dev/lsp-extensions.md#local-documentation"))
 
 ;;; Enable the extensions
 ;;
@@ -331,6 +340,11 @@ connections."
       (when eglot-x-enable-ff-related-file-integration
         (add-hook 'eglot-managed-mode-hook
                   #'eglot-x--configure-ff-related-file-alist))
+      (when eglot-x-enable-local-docs-support
+        (let* ((exp (plist-get capabilities :experimental))
+               (old (if (eq exp eglot--{}) '() exp))
+               (new (plist-put old :localDocs t)))
+          (setq capabilities (plist-put capabilities :experimental new))))
       capabilities)))
 
 (defvar ff-other-file-alist)
@@ -799,7 +813,12 @@ case.")
                               :experimental/externalDocs
                               (eglot--TextDocumentPositionParams))))
     (when res
-      (browse-url res))))
+      (let ((local (plist-get res :local))
+            (web (or (plist-get res :web)
+                     res)))
+        (if (and local (file-exists-p (eglot--uri-to-path local)))
+            (browse-url local)
+          (browse-url web))))))
 
 ;;; Analyzer Status
 
@@ -1594,7 +1613,7 @@ This is in contrast to merely setting it to 0."
 (defun eglot-x--put-in-server (server prop val)
   "Put PROP-VAL into SERVER object just like `plist-put'."
   ;; We can't inherit from eglot-lsp-server and add an additional
-  ;; slot, becasue this should work on any object inheriting from
+  ;; slot, because this should work on any object inheriting from
   ;; eglot-lsp-server.  So let's hide PROP-VAL in the eglot-lsp-server
   ;; object.
   (let ((eglot-x--remove-hidden-info nil))
