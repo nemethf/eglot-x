@@ -137,6 +137,7 @@ positions.
   You can also jump to the crate (Cargo.toml) if the graph-type is not 'svg':
 
   ![crate-graph-2](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/view-crate-graph-ascii.png)
+- [Dependency Tree]: see defun `eglot-x-find-crate`.
 
 ### rust-analyzer specific extensions for debugging rust-analyzer
 - [Analyzer Status]: see defun `eglot-x-analyzer-status`.
@@ -169,6 +170,7 @@ See the documentation of `eglot-x-enable-ff-related-file-integration`.
 
 [Analyzer Status]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#analyzer-status
 [Colored diagnostics]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#colored-diagnostic-output
+[Dependency Tree]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#dependency-tree
 [Expand Macro]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#expand-macro
 [Flycheck commands]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#controlling-flycheck
 [Join Lines]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#join-lines
