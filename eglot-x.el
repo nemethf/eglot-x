@@ -280,6 +280,7 @@ connections."
       ["Clear flycheck" eglot-x-clear-flycheck]
       ["Cancel flycheck" eglot-x-cancel-flycheck])
      ["View crate graph" eglot-x-view-crate-graph]
+     ["Find crate in dependencies" eglot-x-find-crate]
      "--"
      ["Reload workspace" eglot-x-reload-workspace]
      ["Status" eglot-x-analyzer-status]
@@ -955,34 +956,58 @@ This assumes rust."
           (let ((xref-show-xrefs-function xref-show-definitions-function))
             (xref-show-xrefs xrefs nil))
         (user-error
-         (eglot-x--find-crate-with-cargo (symbol-name symbol)))))))
-        ;;  (switch-to-buffer (help-buffer))
-        ;;  (message "Can't find: %s" symbol))))))
+	 (condition-case err
+	     (eglot-x-find-crate (symbol-name symbol))
+	   (error
+            (switch-to-buffer (help-buffer))
+            (signal (car err) (cdr err)))))))))
 
-(defun eglot-x--find-crate-with-cargo (crate)
-  "Find CRATE with cargo and jq."
-  ;; The jq dependency can be easily eliminated.
-  ;; This should be in cargo.el.
-  (let* ((regexp (concat "^"
-                         (replace-regexp-in-string "_" "[_-]" crate)
-                         "$"))
-         (res (shell-command-to-string
-               (concat "cargo metadata --format-version 1|"
-                       "jq '.packages[]|select(.name|test(\""
-                       regexp
-                       "\")).manifest_path'")))
-         (xrefs
+(defun eglot-x--get-dependencies ()
+  "Return dependencies with the rust-analyzer/fetchDependencyList request."
+  (let ((res (jsonrpc-request (eglot--current-server-or-lose)
+			      :rust-analyzer/fetchDependencyList
+			      eglot--{})))
+    (plist-get res :crates)))
+
+(defun eglot-x-find-crate (&optional crate crates)
+  "Find a rust dependency named CRATE.
+If CRATE is nil or there are multiple matches, provide a completion.
+CRATES should be nil, it is used internally."
+  (interactive
+   (let ((crates (eglot-x--get-dependencies))
+	 (completion-extra-properties
+          '(:annotation-function
+            (lambda (c)
+              (when-let ((desc (get-text-property 0 :annotation c)))
+                (concat " " desc))))))
+     (list
+      (completing-read
+       "Dependency: "
+       (mapcar (lambda (obj)
+		 (propertize (plist-get obj :name)
+			     :annotation (plist-get obj :version)))
+	       crates)
+       nil t nil nil (word-at-point))
+      crates)))
+  (let* ((crates (seq-filter (lambda (obj)
+			       (string= crate (plist-get obj :name)))
+			     (or crates (eglot-x--get-dependencies))))
+	 (xrefs
           (lambda ()
-            (mapcar (lambda (line)
-                      (xref-make crate
+            (mapcar (lambda (obj)
+                      (xref-make (if (plist-get obj :version)
+				     (format "%s:%s"
+					     (plist-get obj :name)
+					     (plist-get obj :version))
+				   (plist-get obj :name))
                                  (xref-make-file-location
-                                  (substring line 1 -1) 1 0)))
-                    (split-string res)))))
-    (if (not (equal res ""))
+                                  (eglot--uri-to-path (plist-get obj :path))
+				  1 0)))
+                    crates))))
+    (if crates
         (let ((xref-show-xrefs-function xref-show-definitions-function))
           (xref-show-xrefs xrefs nil))
-      (switch-to-buffer (help-buffer))
-      (message "Can't find: %s" crate))))
+      (user-error "[eglot-x] Can't find crate: %s" crate))))
 
 (defvar eglot-x--graph-buffer " *eglot-x-crate-graph*"
   "Buffer name to store the output of the background process.")
