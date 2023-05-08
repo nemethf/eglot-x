@@ -199,6 +199,14 @@ manages .toml files, or (ii) the rust-analyzer LSP server manages
           :tag "the definition of the extension (rust-analyzer)"
           "https://github.com/rust-lang/rust-analyzer/blob/master/\
 docs/dev/lsp-extensions.md#local-documentation"))
+
+(defcustom eglot-x-enable-open-server-logs t
+  "If non-nil, servers can ask Eglot to show its diagnostics buffers.
+This is an undocumented LSP extension of rust-analyzer.  When the
+server detects a problem, this extension makes the beginning of
+the debugging process a tiny bit easier."
+  :type 'boolean)
+
 
 ;;; Enable the extensions
 ;;
@@ -283,9 +291,13 @@ connections."
      ["Find crate in dependencies" eglot-x-find-crate]
      "--"
      ["Reload workspace" eglot-x-reload-workspace]
+     ["Rebuild proc-macros" eglot-x-rebuild-proc-macros]
      ["Status" eglot-x-analyzer-status]
      ["Show syntax tree" eglot-x-show-syntax-tree]
      ["View HIR" eglot-x-view-hir]
+     ["View MIR" eglot-x-view-mir]
+     ["Interpret Function" eglot-x-interpret-function]
+     ["Debug file sync problems" eglot-x-debug-file-sync-problems]
      ["View item tree" eglot-x-view-item-tree]
      ["Show memory usage" eglot-x-memory-usage])
     ("taplo commands"
@@ -328,6 +340,11 @@ connections."
         (let* ((exp (plist-get capabilities :experimental))
                (old (if (eq exp eglot--{}) '() exp))
                (new (plist-put old :colorDiagnosticOutput t)))
+          (setq capabilities (plist-put capabilities :experimental new))))
+      (when eglot-x-enable-open-server-logs
+        (let* ((exp (plist-get capabilities :experimental))
+               (old (if (eq exp eglot--{}) '() exp))
+               (new (plist-put old :openServerLogs t)))
           (setq capabilities (plist-put capabilities :experimental new))))
       (when (boundp 'eglot-menu)
         (if eglot-x-enable-menu
@@ -835,13 +852,21 @@ case.")
         (insert (format "%s" res))))))
 
 
-;;; Reload Workspace
+;;; Reload Workspace; Rebuild proc-macros
 
 (defun eglot-x-reload-workspace ()
   "Ask server to reload project information (ie, re-execute cargo metadata)."
   (interactive)
   (jsonrpc-request (eglot--current-server-or-lose)
                    :rust-analyzer/reloadWorkspace
+                   nil))
+
+(defun eglot-x-rebuild-proc-macros ()
+  "Ask the rust-analyzer server to rebuilds build scripts and proc-macros.
+The server also runs the build scripts to reseed the build data."
+  (interactive)
+  (jsonrpc-request (eglot--current-server-or-lose)
+                   :rust-analyzer/rebuildProcMacros
                    nil))
 
 ;;; Syntax Tree
@@ -888,18 +913,51 @@ on rust-analyzer itself."
                             'type 'eglot-x--syntax-tree
                             'action 'eglot-x--pop-source-buffer))))))
 
-;;; View Hir
+;;; View Hir/Mir/Interpret Function
 
-(defun eglot-x-view-hir ()
+(defun eglot-x-view-hir (&optional method)
   "Show textual representation of the HIR of the function containing point.
 For debugging or when working on rust-analyzer itself."
   (interactive)
   (let ((res (jsonrpc-request (eglot--current-server-or-lose)
-                              :rust-analyzer/viewHir
+                              (or method :rust-analyzer/viewHir)
                               (eglot--TextDocumentPositionParams))))
     (with-help-window (help-buffer)
       (with-current-buffer (help-buffer)
         (insert (format "%s" res))))))
+
+(defun eglot-x-view-mir ()
+  "Show textual representation of the MIR of the function containing point.
+For debugging or when working on rust-analyzer itself."
+  (interactive)
+  (eglot-x-view-hir :rust-analyzer/viewMir))
+
+(defun eglot-x-interpret-function ()
+  "Try to evaluate the function containing the point.
+It relies on internal rust-analyzer knowledge and does not compile the code.
+See https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#interpret-function"
+  (interactive)
+  (eglot-x-view-hir :rust-analyzer/interpretFunction))
+
+(defun eglot-x-debug-file-sync-problems ()
+  "Compare the current buffer with the file as seen by the rust-analyzer server.
+This is for debugging file sync problems."
+  (interactive)
+  (let (b-min b-max
+	(res
+	 (jsonrpc-request (eglot--current-server-or-lose)
+                          :rust-analyzer/viewFileText
+                          (eglot--TextDocumentIdentifier))))
+    (with-temp-buffer-window (help-buffer) nil nil
+      (with-current-buffer (help-buffer)
+	(insert res)
+	(setq b-min (point-min))
+	(setq b-max (point-max))
+	(help-mode)))
+    (if (zerop (compare-buffer-substrings (current-buffer) (point-min) (point-max)
+					  (help-buffer) b-min b-max))
+	(message "[eglot-x] Detected no sync problems")
+      (ediff-buffers (current-buffer) (help-buffer)))))
 
 ;;; View ItemTree
 
@@ -1735,6 +1793,26 @@ See `eglot-x-enable-colored-diagnostics'."
           (list "Cargo.toml")
         (find-file-noselect related-file) ; See Emacs bug#57325.
         (list related-file)))))
+
+;;; Open Server Log
+;;
+;; To test it:
+;; 1. open a rust file, start Eglot as usual
+;; 2. mv cargo cargo-
+;; 3. M-x eglot-x-reload-workspace RET
+
+(cl-defmethod eglot-handle-notification
+  (_server (_method (eql rust-analyzer/openServerLogs)) &key type message)
+  "Handle notification rust-analyzer/openServerLogs.
+See `eglot-x-enable-open-server-logs'."
+  (let* ((server (eglot--current-server-or-lose))
+         (error-window (eglot-stderr-buffer server))
+         (error-buffer (window-buffer error-window)))
+    ;; https://rust-analyzer.github.io/manual.html#troubleshooting says
+    ;; "Log messages are printed to stderr"
+    (eglot-events-buffer server)
+    (switch-to-buffer error-buffer)))
+
 
 ;;; taplo extensions
 

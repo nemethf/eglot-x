@@ -124,10 +124,14 @@ positions.
 
   (The ansi-color.el of Emacs 27 is too old for this feature, Emacs 29 is OK.)
 
+- Open Server Logs: LSP servers can ask the client to show thier logs,
+  see variable `eglot-x-enable-open-server-logs` for details.
+
 ### rust-analyzer specific extensions
 - [Expand Macro]: see defun `eglot-x-expand-macro`.
 - [Related Tests]: see defun `eglot-x-ask-related-tests`.
 - [Reload Workspace]: see defun `eglot-x-reload-workspace`.
+- [Rebuild proc-macros]: see defun `eglot-x-rebuild-proc-macros`.
 - [Flycheck commands]: see defuns `eglot-x-run-flycheck`, `eglot-x-clear-flycheck`,
   and `eglot-x-cancel-flycheck`.
 - [View Crate Graph]: see variable `eglot-x-graph-type` and defun `eglot-x-view-crate-graph`.
@@ -146,6 +150,9 @@ positions.
   ![syntax-tree](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/syntax-tree.png)
 
 - [View Hir]: see defun `eglot-x-view-hir`.
+- [View Mir]: see defun `eglot-x-view-mir`.
+- [Interpret Function]: see defun `eglot-x-interpret-function`.
+- [View File Text]: see defun `eglot-x-debug-file-sync-problems`.
 - (Memory Usage): see defun `eglot-x-memory-usage`.
 
 ## Taplo specific extensions
@@ -173,12 +180,14 @@ See the documentation of `eglot-x-enable-ff-related-file-integration`.
 [Dependency Tree]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#dependency-tree
 [Expand Macro]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#expand-macro
 [Flycheck commands]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#controlling-flycheck
+[Interpret Function]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#interpret-function
 [Join Lines]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#join-lines
 [Local Documentation]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#local-documentation
 [Matching Brace]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#matching-brace
 [Move Item]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#move-item
 [On Enter]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#on-enter
 [Open External Documentation]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#open-external-documentation
+[Rebuild proc-macros]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#rebuild-proc-macros
 [Related Tests]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#related-tests
 [Reload Workspace]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#reload-workspace
 [Runnables]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#runnables
@@ -187,8 +196,11 @@ See the documentation of `eglot-x-enable-ff-related-file-integration`.
 [Syntax Tree]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#syntax-tree
 [Taplo]: https://github.com/tamasfe/taplo/tree/master/crates/taplo-lsp/src/lsp_ext
 [View Crate Graph]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-crate-graph
-[View Hir]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-hir
+[View File Text]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-file-text
+[View Hir]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-hir
+[View Mir]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-mir
 [Workspace Symbols Filtering]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#workspace-symbols-filtering
+
 [ccls-refs]: https://github.com/MaskRay/ccls/wiki/LSP-Extensions
 [eglot]: https://github.com/joaotavora/eglot/
 [gpl]: COPYING
