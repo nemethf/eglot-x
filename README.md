@@ -141,6 +141,8 @@ positions.
   You can also jump to the crate (Cargo.toml) if the graph-type is not 'svg':
 
   ![crate-graph-2](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/view-crate-graph-ascii.png)
+
+  (This command requires [graphviz]/[graph-easy].)
 - [Dependency Tree]: see defun `eglot-x-find-crate`.
 
 ### rust-analyzer specific extensions for debugging rust-analyzer
@@ -204,6 +206,8 @@ See the documentation of `eglot-x-enable-ff-related-file-integration`.
 [ccls-refs]: https://github.com/MaskRay/ccls/wiki/LSP-Extensions
 [eglot]: https://github.com/joaotavora/eglot/
 [gpl]: COPYING
+[graph-easy]: https://metacpan.org/dist/Graph-Easy
+[graphviz]: https://graphviz.org/
 [ssr]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#structural-search-replace-ssr
 [utf-8-offsets]: https://clangd.github.io/extensions.html#utf-8-offsets
 [xfiles]: https://github.com/sourcegraph/language-server-protocol/blob/master/extension-files.md
