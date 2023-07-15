@@ -132,8 +132,10 @@ positions.
 - [Related Tests]: see defun `eglot-x-ask-related-tests`.
 - [Reload Workspace]: see defun `eglot-x-reload-workspace`.
 - [Rebuild proc-macros]: see defun `eglot-x-rebuild-proc-macros`.
-- [Flycheck commands]: see defuns `eglot-x-run-flycheck`, `eglot-x-clear-flycheck`,
-  and `eglot-x-cancel-flycheck`.
+- [Flycheck commands]: see defuns `eglot-x-run-flycheck`,
+  `eglot-x-clear-flycheck`, and `eglot-x-cancel-flycheck`.  (These
+  commands implement lsp-extensions and have nothing to do with the
+  flycheck Emacs package.)
 - [View Crate Graph]: see variable `eglot-x-graph-type` and defun `eglot-x-view-crate-graph`.
 
   ![crate-graph](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/view-crate-graph.png)
