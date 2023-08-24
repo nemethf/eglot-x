@@ -6,7 +6,7 @@
 ;; Author: Felicián Németh <felician.nemeth@gmail.com>
 ;; URL: https://github.com/nemethf/eglot-x
 ;; Keywords: convenience, languages
-;; Package-Requires: ((emacs "27.1") (project "0.8.1") (eglot "1.13") (xref "1.4"))
+;; Package-Requires: ((emacs "27.1") (project "0.8.1") (eglot "1.15") (xref "1.4"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -604,15 +604,15 @@ See `eglot-x-enable-refs'."
 
 (defun eglot-x--encoding-configure-utf-32 (_encoding)
   (let ((pairs
-         '((eglot-current-column-function . eglot-current-column)
-           (eglot-move-to-column-function . eglot-move-to-column))))
+         '((eglot-current-linepos-function . eglot-utf-32-linepos)
+           (eglot-move-to-linepos-function . eglot-move-to-utf-32-linepos))))
     (dolist (pair pairs)
       (set (make-local-variable (car pair)) (cdr pair)))))
 
 (defun eglot-x--encoding-configure-utf-16 (_encoding)
   (let ((pairs
-         '((eglot-current-column-function . eglot-lsp-abiding-column)
-           (eglot-move-to-column-function . eglot-move-to-lsp-abiding-column))))
+         '((eglot-current-linepos-function . eglot-utf-16-linepos)
+           (eglot-move-to-linepos-function . eglot-move-to-utf-16-linepos))))
     (dolist (pair pairs)
       (set (make-local-variable (car pair)) (cdr pair)))))
 
