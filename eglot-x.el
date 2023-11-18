@@ -289,6 +289,7 @@ connections."
       ["Cancel flycheck" eglot-x-cancel-flycheck])
      ["View crate graph" eglot-x-view-crate-graph]
      ["Find crate in dependencies" eglot-x-find-crate]
+     ["View Recursive Memory Layout" eglot-x-view-recursive-memory-layout]
      "--"
      ["Reload workspace" eglot-x-reload-workspace]
      ["Rebuild proc-macros" eglot-x-rebuild-proc-macros]
@@ -1812,6 +1813,140 @@ See `eglot-x-enable-open-server-logs'."
     ;; "Log messages are printed to stderr"
     (eglot-events-buffer server)
     (switch-to-buffer error-buffer)))
+
+;;; View Recursive Memory Layout
+;;
+;; https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-recursive-memory-layout
+;; https://github.com/rust-lang/rust-analyzer/pull/15081
+;;
+;; pahole: https://lwn.net/Articles/206805/
+;; pahole: https://manpages.ubuntu.com/manpages/jammy/man1/pahole.1.html
+;;
+;; pahole-like functionality via "ptype/o"
+;; https://sourceware.org/bugzilla/show_bug.cgi?id=22574
+
+(defun eglot-x--ML-find-root (nodes node)
+  (let ((parent-idx (plist-get node :parentIdx)))
+    (if (eq parent-idx -1)
+        node
+      (eglot-x--ML-find-root
+       nodes (elt nodes parent-idx)))))
+
+(defun eglot-x--ML-calc-props (nodes node level)
+  (let ((children-start (plist-get node :childrenStart))
+        (nb-gaps 0)
+        (gap-size 0) ; cumulative
+        (prev-end 0)
+        prev-child)
+    (plist-put node :level level)
+    (unless (eq children-start -1)
+      (cl-loop
+       for idx
+       from children-start
+       to (+ children-start (plist-get node :childrenLen) -1)
+       do (let* ((child (elt nodes idx))
+                 (offset (plist-get child :offset))
+                 (prev-padding (- offset prev-end)))
+            (when (and (< 0 prev-padding)
+                       prev-child)
+              ;; previous child ended in a gap
+              (setq prev-child (plist-put prev-child :padding prev-padding))
+              (setq gap-size (+ gap-size prev-padding))
+              (setq nb-gaps (1+ nb-gaps)))
+              (eglot-x--ML-calc-props nodes child (1+ level))
+              (setq gap-size (+ gap-size (plist-get child :gap-size)))
+              (setq nb-gaps (+ nb-gaps (plist-get child :nb-gaps)))
+              (when (< 0 (plist-get child :size))
+                (setq prev-end (+ offset (plist-get child :size)))
+                (setq prev-child child)))))
+    (setq node (plist-put node :gap-size gap-size))
+    (setq node (plist-put node :nb-gaps nb-gaps))))
+
+(defun eglot-x--ML-set-header (widths)
+  "Set header-line-format.  WIDTHS is a list of column widths."
+  (let* ((fmt "%%-%ds %%-%ds %%-%ds    %%%ds %%%ds %%%ds %%%ds %%%ds")
+         (column-names '("level" "name" "type" "offset" "size" "alignment"
+                         "nb-gaps" "gap-size"))
+         (column-names
+          (cl-mapcar (lambda (column-name width)
+                       (truncate-string-to-width
+                        (propertize column-name 'help-echo column-name)
+                        width))
+                     column-names widths)))
+    (setq header-line-format
+          (concat
+           (propertize " " 'display '(space :align-to 0))
+           (apply #'format (apply #'format fmt widths) column-names)))))
+
+(defun eglot-x--ML-print-node (nodes node widths)
+  (let ((children-start (plist-get node :childrenStart))
+        (fmt
+         "%%-%ds %%-%ds %%-%ds /* %%%dd %%%dd %%%dd %%%dd %%%dd */\n")
+        (fmt-padding
+         "%%-%ds %%-%ds %%-%ds /* %%%dd %%%ds %%%ds %%%dd %%%dd */\n"))
+    (insert
+     (format (apply #'format fmt widths)
+             (make-string (plist-get node :level) ?*)
+             (concat (plist-get node :itemName) ":")
+             (plist-get node :typename)
+             (plist-get node :offset)
+             (plist-get node :size)
+             (plist-get node :alignment)
+             (plist-get node :nb-gaps)
+             (plist-get node :gap-size)))
+    (when (plist-get node :padding)
+      (insert
+       (format (apply #'format fmt-padding widths)
+               (make-string (plist-get node :level) ?*)
+               "" ; :name
+               "padding" ; :typename
+               (+ (plist-get node :size) (plist-get node :offset)) ; :offset
+               (plist-get node :padding)
+               "" ; :alignment
+               1  ; :nb-gaps
+               (plist-get node :padding))))
+    (unless (eq children-start -1)
+      (cl-loop for idx
+               from children-start
+               to (+ children-start (plist-get node :childrenLen) -1)
+               do (eglot-x--ML-print-node nodes (elt nodes idx) widths)))))
+
+(defun eglot-x-view-recursive-memory-layout ()
+  "Show memory layout for the symbol under point.
+It relys on a rust-analyzer LSP extension."
+  (interactive)
+  (let* ((res
+          (jsonrpc-request (eglot--current-server-or-lose)
+                           :rust-analyzer/viewRecursiveMemoryLayout
+                           (eglot--TextDocumentPositionParams)))
+         (nodes (plist-get res :nodes))
+	 (_ (unless nodes
+	      (error "[eglot-x] Server returned no memory layout")))
+         (root (eglot-x--ML-find-root nodes (elt nodes 0)))
+         (_ (eglot-x--ML-calc-props nodes root 0))
+         (widths
+          (mapcar
+           (lambda (node)
+             (mapcar (lambda (prop-type)
+                       (length (format (cdr prop-type)
+                                       (plist-get node (car prop-type)))))
+                     '((:itemName . "%s:") (:typename . "%s") (:offset . "%d")
+                       (:size . "%d") (:alignment . "%d")
+                       (:nb-gaps . "%s") (:gap-size . "%d"))))
+           nodes))
+         (widths
+          (cl-reduce
+           (lambda (a b)
+             (cl-mapcar #'max a b))
+           (cons (list 0 (string-width "padding ") 0 0 0 0 0) widths)))
+         (nb-levels
+          (apply #'max (mapcar (lambda (node) (plist-get node :level)) nodes))))
+    (with-help-window (help-buffer)
+      (with-current-buffer (help-buffer)
+        (eglot-x--ML-set-header `(,nb-levels ,@widths))
+        (eglot-x--ML-print-node nodes root `(,nb-levels ,@widths))
+        (set (make-local-variable 'outline-minor-mode-highlight) 'override)
+        (outline-minor-mode t)))))
 
 
 ;;; taplo extensions

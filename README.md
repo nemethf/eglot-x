@@ -147,6 +147,22 @@ positions.
   (This command requires [graphviz]/[graph-easy].)
 - [Dependency Tree]: see defun `eglot-x-find-crate`.
 
+- [View Recursive Memory Layout]: the command
+  `eglot-x-view-recursive-memory-layout` shows the memory layout of
+  the thing under point.
+
+  ![view-recursive-memory-layout-1](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/view-recursive-memory-layout-1.png)
+
+  Tooltips show the column names: offset, size, alignement, number of
+  gaps, and gap-size.  The output format is inspired by [pahole],
+  which (I think) more practical than the
+  [upstream graphical output][Upstream memory layout]:
+
+  ![view-recursive-memory-layout-2](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/view-recursive-memory-layout-2.png)
+
+  The built-in outline-minor-mode helps to naviagate / understand a
+  recursive layout.
+
 ### rust-analyzer specific extensions for debugging rust-analyzer
 - [Analyzer Status]: see defun `eglot-x-analyzer-status`.
 - [Syntax Tree]: see defun `eglot-x-show-syntax-tree`.
@@ -199,10 +215,12 @@ See the documentation of `eglot-x-enable-ff-related-file-integration`.
 [Snippet TextEdits]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#snippet-textedit
 [Syntax Tree]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#syntax-tree
 [Taplo]: https://github.com/tamasfe/taplo/tree/master/crates/taplo-lsp/src/lsp_ext
+[Upstream memory layout]: https://github.com/rust-lang/rust-analyzer/pull/15081
 [View Crate Graph]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-crate-graph
 [View File Text]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-file-text
 [View Hir]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-hir
 [View Mir]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-mir
+[View Recursive Memory Layout]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-recursive-memory-layout
 [Workspace Symbols Filtering]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#workspace-symbols-filtering
 
 [ccls-refs]: https://github.com/MaskRay/ccls/wiki/LSP-Extensions
@@ -210,6 +228,7 @@ See the documentation of `eglot-x-enable-ff-related-file-integration`.
 [gpl]: COPYING
 [graph-easy]: https://metacpan.org/dist/Graph-Easy
 [graphviz]: https://graphviz.org/
+[pahole]: https://manpages.ubuntu.com/manpages/jammy/man1/pahole.1.html
 [ssr]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#structural-search-replace-ssr
 [utf-8-offsets]: https://clangd.github.io/extensions.html#utf-8-offsets
 [xfiles]: https://github.com/sourcegraph/language-server-protocol/blob/master/extension-files.md
