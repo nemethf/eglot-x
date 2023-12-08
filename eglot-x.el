@@ -1832,11 +1832,11 @@ See `eglot-x-enable-open-server-logs'."
       (eglot-x--ML-find-root
        nodes (elt nodes parent-idx)))))
 
-(defun eglot-x--ML-calc-props (nodes node level)
+(defun eglot-x--ML-calc-props (nodes node level initial-offset)
   (let ((children-start (plist-get node :childrenStart))
         (nb-gaps 0)
         (gap-size 0) ; cumulative
-        (prev-end 0)
+        (prev-end initial-offset)
         prev-child)
     (plist-put node :level level)
     (unless (eq children-start -1)
@@ -1845,7 +1845,7 @@ See `eglot-x-enable-open-server-logs'."
        from children-start
        to (+ children-start (plist-get node :childrenLen) -1)
        do (let* ((child (elt nodes idx))
-                 (offset (plist-get child :offset))
+                 (offset (+ initial-offset (plist-get child :offset)))
                  (prev-padding (- offset prev-end)))
             (when (and (< 0 prev-padding)
                        prev-child)
@@ -1853,14 +1853,16 @@ See `eglot-x-enable-open-server-logs'."
               (setq prev-child (plist-put prev-child :padding prev-padding))
               (setq gap-size (+ gap-size prev-padding))
               (setq nb-gaps (1+ nb-gaps)))
-              (eglot-x--ML-calc-props nodes child (1+ level))
+              (eglot-x--ML-calc-props nodes child (1+ level) offset)
               (setq gap-size (+ gap-size (plist-get child :gap-size)))
               (setq nb-gaps (+ nb-gaps (plist-get child :nb-gaps)))
               (when (< 0 (plist-get child :size))
                 (setq prev-end (+ offset (plist-get child :size)))
                 (setq prev-child child)))))
+    (setq node (plist-put node :offset initial-offset))
     (setq node (plist-put node :gap-size gap-size))
-    (setq node (plist-put node :nb-gaps nb-gaps))))
+    (setq node (plist-put node :nb-gaps nb-gaps))
+    nodes))
 
 (defun eglot-x--ML-set-header (widths)
   "Set header-line-format.  WIDTHS is a list of column widths."
@@ -1906,10 +1908,17 @@ See `eglot-x-enable-open-server-logs'."
                1  ; :nb-gaps
                (plist-get node :padding))))
     (unless (eq children-start -1)
-      (cl-loop for idx
-               from children-start
-               to (+ children-start (plist-get node :childrenLen) -1)
-               do (eglot-x--ML-print-node nodes (elt nodes idx) widths)))))
+      (mapc
+       (lambda (node) (eglot-x--ML-print-node nodes node widths))
+       ;; Sort nodes in oder to display 0-length nodes first.
+       ;; (Upstream version simply does not display these.)
+       (sort
+        (seq-take (seq-drop nodes children-start)
+                  (plist-get node :childrenLen))
+        (lambda (a b)
+          (or (< (plist-get a :offset) (plist-get b :offset))
+              (and (= (plist-get a :offset) (plist-get b :offset))
+                   (< (plist-get a :size) (plist-get b :size))))))))))
 
 (defun eglot-x-view-recursive-memory-layout ()
   "Show memory layout for the symbol under point.
@@ -1919,11 +1928,10 @@ It relys on a rust-analyzer LSP extension."
           (jsonrpc-request (eglot--current-server-or-lose)
                            :rust-analyzer/viewRecursiveMemoryLayout
                            (eglot--TextDocumentPositionParams)))
-         (nodes (plist-get res :nodes))
-	 (_ (unless nodes
-	      (error "[eglot-x] Server returned no memory layout")))
+         (nodes (or (plist-get res :nodes)
+	            (error "[eglot-x] Server returned no memory layout")))
          (root (eglot-x--ML-find-root nodes (elt nodes 0)))
-         (_ (eglot-x--ML-calc-props nodes root 0))
+         (nodes (eglot-x--ML-calc-props nodes root 0 0))
          (widths
           (mapcar
            (lambda (node)
