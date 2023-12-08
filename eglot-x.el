@@ -659,10 +659,17 @@ See `eglot-x-enable-refs'."
 
 ;;; Snippet TextEdit
 
-(defun eglot-x--apply-text-edits (edits &optional version)
+(defun eglot-x--apply-text-edits (edits &optional version silent)
   "Apply EDITS for current buffer if at VERSION, or if it's nil.
 This is almost a verbatim copy of `eglot--apply-text-edits', but
 it handles the SnippetTextEdit format."
+  ;; NOTE: eglot--apply-text-edits changed a lot since this defun was
+  ;; imlemented.  Additionally, rust-analyzer has changed as well.
+  ;; Now it only sends one SnippetTextEdit.  Hence the implementation
+  ;; should be updated, but "if it ain't broke, don't fix it".  And
+  ;; this whole extension is going to be obsoleted soon:
+  ;; https://github.com/microsoft/language-server-protocol/issues/724#issuecomment-1850413029
+
   ;; This is quite rust-analyzer specific.  It assumes there is at
   ;; most one meaningful SnippetTextEdit and that can be identified by
   ;; searching for "$0".
