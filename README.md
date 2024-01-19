@@ -163,6 +163,9 @@ positions.
   The built-in outline-minor-mode helps to naviagate / understand a
   recursive layout.
 
+  A better [layout optimization approach][lwn955709] relies on
+  run-time statistics as well, which this command does not provide.
+
 ### rust-analyzer specific extensions for debugging rust-analyzer
 - [Analyzer Status]: see defun `eglot-x-analyzer-status`.
 - [Syntax Tree]: see defun `eglot-x-show-syntax-tree`.
@@ -228,6 +231,7 @@ See the documentation of `eglot-x-enable-ff-related-file-integration`.
 [gpl]: COPYING
 [graph-easy]: https://metacpan.org/dist/Graph-Easy
 [graphviz]: https://graphviz.org/
+[lwn955709]: https://lwn.net/Articles/955709/
 [pahole]: https://manpages.ubuntu.com/manpages/jammy/man1/pahole.1.html
 [ssr]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#structural-search-replace-ssr
 [utf-8-offsets]: https://clangd.github.io/extensions.html#utf-8-offsets
