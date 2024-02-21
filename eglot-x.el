@@ -6,7 +6,7 @@
 ;; Author: Felicián Németh <felician.nemeth@gmail.com>
 ;; URL: https://github.com/nemethf/eglot-x
 ;; Keywords: convenience, languages
-;; Package-Requires: ((emacs "27.1") (project "0.8.1") (eglot "1.15") (xref "1.4"))
+;; Package-Requires: ((emacs "27.1") (project "0.8.1") (eglot "1.16") (xref "1.4"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -220,8 +220,8 @@ Call it when there are no active LSP servers."
   ;; defuns containing file-remote-p
   (advice-add 'eglot--cmd     :around #'eglot-x--disable-built-in-tramp)
   (advice-add 'eglot--connect :around #'eglot-x--disable-built-in-tramp)
-  (advice-add 'eglot--path-to-uri :around #'eglot-x--disable-built-in-tramp)
-  (advice-add 'eglot--uri-to-path :around #'eglot-x--disable-built-in-tramp)
+  (advice-add 'eglot-path-to-uri :around #'eglot-x--disable-built-in-tramp)
+  (advice-add 'eglot-uri-to-path :around #'eglot-x--disable-built-in-tramp)
   ;; defuns containing file-local-name (but not file-remote-p)
   (advice-add 'eglot--connect :around #'eglot-x--disable-built-in-tramp)
   ;; others
@@ -240,12 +240,12 @@ connections."
   (interactive)
   (setq eglot-x--enabled nil)
   ;; defuns containing file-remote-p
-  (advice-remove 'eglot--cmd         #'eglot-x--disable-built-in-tramp)
-  (advice-remove 'eglot--connect     #'eglot-x--disable-built-in-tramp)
-  (advice-remove 'eglot--path-to-uri #'eglot-x--disable-built-in-tramp)
-  (advice-remove 'eglot--uri-to-path #'eglot-x--disable-built-in-tramp)
+  (advice-remove 'eglot--cmd        #'eglot-x--disable-built-in-tramp)
+  (advice-remove 'eglot--connect    #'eglot-x--disable-built-in-tramp)
+  (advice-remove 'eglot-path-to-uri #'eglot-x--disable-built-in-tramp)
+  (advice-remove 'eglot-uri-to-path #'eglot-x--disable-built-in-tramp)
   ;; defuns containing file-local-name (but not file-remote-p)
-  (advice-remove 'eglot--connect     #'eglot-x--disable-built-in-tramp)
+  (advice-remove 'eglot--connect    #'eglot-x--disable-built-in-tramp)
   ;; others
   (advice-remove 'eglot--connect #'eglot-x--encoding-enable-hack)
   (advice-remove 'jsonrpc--async-request-1
@@ -354,8 +354,8 @@ connections."
 			   '(eglot-x-sep menu-item "--") t)
               (add-to-list 'eglot-menu
 			   `(eglot-x menu-item "eglot-x" ,eglot-x-menu) t))
-	  (assq-delete-all 'eglot-x-sep eglot-menu)
-	  (assq-delete-all 'eglot-x eglot-menu)))
+	  (setq eglot-menu (assq-delete-all 'eglot-x-sep eglot-menu))
+	  (setq eglot-menu (assq-delete-all 'eglot-x eglot-menu))))
       (when eglot-x-enable-ff-related-file-integration
         (add-hook 'eglot-managed-mode-hook
                   #'eglot-x--configure-ff-related-file-alist))
@@ -398,7 +398,7 @@ connections."
 
 (defun eglot-x--path-to-TextDocumentIdentifier (path)
   "Convert PATH to TextDocumentIdentifier."
-    `(:uri ,(eglot--path-to-uri path)))
+    `(:uri ,(eglot-path-to-uri path)))
 
 (defvar eglot-x--project-files-cache '(0 nil nil)
   "A cache for function `eglot-x--project-files'.
@@ -457,7 +457,7 @@ assumed to be an element of `project-files'."
 (cl-defmethod eglot-handle-request
   (server (_method (eql textDocument/xcontent)) &key textDocument)
   "Handle server request textDocument/xcontent"
-  (let* ((file (eglot--uri-to-path (plist-get textDocument :uri)))
+  (let* ((file (eglot-uri-to-path (plist-get textDocument :uri)))
          (buffer (find-buffer-visiting file))
          (project-files (eglot-x--project-files (eglot--project server))))
     (if (or (not (eglot-x--files-visible-p file))
@@ -546,9 +546,9 @@ See `eglot-x-enable-refs'."
          (selected (tmm-prompt menu)))
     (if (functionp (car selected))
         (apply #'funcall selected)
-      (eglot--lsp-xref-helper (car selected)
-                              :extra-params (cdr selected)
-                              :capability :definitionProvider))))
+      (eglot--lsp-xrefs-for-method (car selected)
+                                   :extra-params (cdr selected)
+                                   :capability :definitionProvider))))
 
 
 ;;; Encoding negotiation
@@ -598,7 +598,7 @@ See `eglot-x-enable-refs'."
   (when (and eglot-x-enable-encoding-negotiation
              (eglot-managed-p)
              (eglot-current-server))
-    (let* ((encoding (eglot--server-capable :offsetEncoding))
+    (let* ((encoding (eglot-server-capable :offsetEncoding))
            (fn (assoc-default encoding eglot-x-encoding-alist)))
       (when fn
         (funcall fn encoding)))))
@@ -636,7 +636,7 @@ See `eglot-x-enable-refs'."
 ;;   Hover Range
 
 (defun eglot-x--check-capability (&rest capabilities)
-  (unless (apply #'eglot--server-capable capabilities)
+  (unless (apply #'eglot-server-capable capabilities)
     (eglot--error "Server lacks capability: %s" capabilities)))
 
 (eval-and-compile
@@ -730,7 +730,7 @@ it handles the SnippetTextEdit format."
                             (setq snippet-end (point-max-marker)))))
                       (progress-reporter-update reporter (cl-incf done)))))))
             (mapcar (eglot--lambda ((SnippetTextEdit) range newText insertTextFormat)
-                      (list newText insertTextFormat (eglot--range-region range 'markers)))
+                      (list newText insertTextFormat (eglot-range-region range 'markers)))
                     (reverse edits)))
       (when snippet
         (goto-char snippet-beg)
@@ -762,7 +762,7 @@ it handles the SnippetTextEdit format."
     (mapc (lambda (textEdit)
             (eglot--dbind ((TextEdit) range newText) textEdit
               (pcase-let ((`(,beg . ,end)
-                           (eglot--range-region range)))
+                           (eglot-range-region range)))
                 (delete-region beg end)
                 (goto-char beg)
                 (funcall #'insert newText))))
@@ -842,7 +842,7 @@ case.")
       (let ((local (plist-get res :local))
             (web (or (plist-get res :web)
                      res)))
-        (if (and local (file-exists-p (eglot--uri-to-path local)))
+        (if (and local (file-exists-p (eglot-uri-to-path local)))
             (browse-url local)
           (browse-url web))))))
 
@@ -1067,7 +1067,7 @@ CRATES should be nil, it is used internally."
 					     (plist-get obj :version))
 				   (plist-get obj :name))
                                  (xref-make-file-location
-                                  (eglot--uri-to-path (plist-get obj :path))
+                                  (eglot-uri-to-path (plist-get obj :path))
 				  1 0)))
                     crates))))
     (if crates
@@ -1363,10 +1363,10 @@ See `eglot-x--replace' for the description of RDATA, and
                               (equal version eglot--versioned-identifier))
                     (jsonrpc-error "Edits on `%s' require version %d, you have %d"
                    (current-buffer) version eglot--versioned-identifier))
-                  (with-current-buffer (find-file-noselect (eglot--uri-to-path uri))
+                  (with-current-buffer (find-file-noselect (eglot-uri-to-path uri))
                     (mapcar (lambda (edit)
                               (eglot--dbind ((TextEdit) range newText) edit
-                                (cons (eglot--range-region range t) newText)))
+                                (cons (eglot-range-region range t) newText)))
                             edits))))
               documentChanges)))
            (files (delete-dups
@@ -1507,7 +1507,7 @@ See `eglot-x--replace' for the description of RDATA, and
 (defun eglot-x--ws-xrefs (pattern)
   "Search for workspace symbols matching PATTERN.
 Adapted from `eglot--lsp-xref-helper'."
-  (unless (eglot--server-capable :workspaceSymbolProvider)
+  (unless (eglot-server-capable :workspaceSymbolProvider)
     (eglot--error "Sorry, this server doesn't do %s" :workspaceSymbolProvider))
   (let* ((kind (cadr (assoc 'kind eglot-x--ws-args-alist)))
          (scope (cadr (assoc 'scope eglot-x--ws-args-alist)))
@@ -1585,7 +1585,7 @@ Adapted from `eglot--lsp-xref-helper'."
       (xref-loc-runnable-runnable l)
     (eglot--dbind ((LocationLink) targetUri) location
       (if targetUri
-          (eglot--uri-to-path targetUri)
+          (eglot-uri-to-path targetUri)
         "workspace"))))
 
 (cl-defmethod xref-location-line ((l xref-loc-runnable))
@@ -1598,7 +1598,7 @@ Adapted from `eglot--lsp-xref-helper'."
   (eglot--dbind ((Runnable) location args)
       (xref-loc-runnable-runnable l)
     (eglot--dbind ((LocationLink) targetUri targetRange) location
-      (let ((file (if targetUri (eglot--uri-to-path targetUri)
+      (let ((file (if targetUri (eglot-uri-to-path targetUri)
                     (plist-get args :workspaceRoot))))
         (with-current-buffer
             (or (get-file-buffer file)
@@ -1796,7 +1796,7 @@ See `eglot-x-enable-colored-diagnostics'."
             (jsonrpc-request (eglot--current-server-or-lose)
                              :experimental/openCargoToml
                              `(:textDocument ,(eglot--TextDocumentIdentifier))))
-           (related-file (eglot--uri-to-path (plist-get res :uri))))
+           (related-file (eglot-uri-to-path (plist-get res :uri))))
       (if (string= "" related-file)
           (list "Cargo.toml")
         (find-file-noselect related-file) ; See Emacs bug#57325.
@@ -1810,7 +1810,7 @@ See `eglot-x-enable-colored-diagnostics'."
 ;; 3. M-x eglot-x-reload-workspace RET
 
 (cl-defmethod eglot-handle-notification
-  (_server (_method (eql rust-analyzer/openServerLogs)) &key type message)
+  (_server (_method (eql rust-analyzer/openServerLogs)) &key _type _message)
   "Handle notification rust-analyzer/openServerLogs.
 See `eglot-x-enable-open-server-logs'."
   (let* ((server (eglot--current-server-or-lose))
@@ -1976,13 +1976,13 @@ It relys on a rust-analyzer LSP extension."
 
 (defun eglot-x--uri-to-path (url)
   "Convert URL to file path, helped by `eglot--current-server'.
-As opposed to `eglot--uri-to-path', return nil if the url-scheme
+As opposed to `eglot-uri-to-path', return nil if the url-scheme
 is not \"file\"."
   ;; See https://github.com/joaotavora/eglot/pull/854
   (when url
     (let ((parsed-url (url-generic-parse-url (url-unhex-string url))))
       (when (string-equal "file" (downcase (url-type parsed-url)))
-        (eglot--uri-to-path url)))))
+        (eglot-uri-to-path url)))))
 
 (defun eglot-x--taplo-get-associated-schema (&optional as-filename)
   "Return the associated schema for the current buffer.
