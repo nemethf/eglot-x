@@ -1,11 +1,12 @@
 # Protocol extensions for Eglot
 
-[Eglot][eglot] supports (a subset of) the Language Server Protocol.
-However, there are useful protocol extensions that are not (yet) part
-of the official protocol specification.  Eglot-x adds support for some
-of them.  If you find a bug in Eglot, please, try to reproduce it
-without Eglot-x, because Eglot-x is substantially modifies Eglot's
-normal behavior as well.
+[Eglot][eglot] aims to support the Language Server Protocol, but none
+of its unofficial extensions.  Eglot-x adds support for some of these
+protocol extensions.
+
+If you find a bug in Eglot, please, try to reproduce it without
+Eglot-x, because Eglot-x substantially modifies Eglot's normal
+behavior as well.
 
 Add the following lines to your init file to enable eglot-x
 
@@ -24,7 +25,7 @@ To adjust which extensions are enabled:
 
 ## Files extension
 
-The [extension][xfiles] allows the client and the server to have
+This [extension][xfiles] allows the client and the server to have
 separate file systems.  For example, the server can run inside a
 Docker container, or the source code can be on a remote system
 accessed by Tramp.  The client can send files to the server only from
@@ -124,7 +125,7 @@ positions.
 
   (The ansi-color.el of Emacs 27 is too old for this feature, Emacs 29 is OK.)
 
-- Open Server Logs: LSP servers can ask the client to show thier logs,
+- Open Server Logs: LSP servers can ask the client to show their logs,
   see variable `eglot-x-enable-open-server-logs` for details.
 
 ### rust-analyzer specific extensions

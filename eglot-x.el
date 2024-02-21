@@ -23,11 +23,12 @@
 
 ;;; Commentary:
 
-;; Eglot supports (a subset of) the Language Server Protocol.
-;; However, there are useful protocol extensions that are not part of
-;; the official protocol specification.  Eglot-x adds support for some
-;; of them.  If you find a bug in Eglot, please, try to reproduce it
-;; without Eglot-x, because Eglot-x is substantially modifies Eglot's
+;; Eglot aims to support the Language Server Protocol, but none of its
+;; unofficial extensions.  Eglot-x adds support for some of these
+;; protocol extensions.
+;;
+;; If you find a bug in Eglot, please, try to reproduce it
+;; without Eglot-x, because Eglot-x substantially modifies Eglot's
 ;; normal behavior as well.
 ;;
 ;; Add the following lines to your init file to enable eglot-x
@@ -60,7 +61,7 @@
 (defcustom eglot-x-enable-files nil
   "If non-nil, enable the support for the files protocol extension.
 
-The extension allows the client and the server to have separate
+This extension allows the client and the server to have separate
 file systems.  For example, the server can run inside a Docker
 container, or the source code can be on a remote system accessed
 by Tramp.
@@ -115,6 +116,9 @@ predates the standardized positionEncodings capability.
 
 `eglot-x-encoding-alist' defines the details of the client's
 behavior."
+  ;; Since this feature is the LSP standard as positionEncodings and
+  ;; Eglot supports it, eglot-x "soon" can drop the support for this
+  ;; extension.  See: https://github.com/clangd/clangd/issues/1746
   :type 'boolean
   :link '(url-link
           :tag "The definition of the extension (clangd)"
@@ -137,7 +141,7 @@ argument."
 
 More precisely, \"WorkspaceEdits returned from codeAction requests
 might contain SnippetTextEdits instead of usual TextEdits\".
-Example: \"Add derive\" code action transforms \"struct S;\"
+Example: the \"Add derive\" code action transforms \"struct S;\"
 into \"#[derive($0)] struct S;\""
   :type 'boolean
   :link '(url-link
@@ -167,7 +171,8 @@ docs/dev/lsp-extensions.md#server-status"))
     (const :tag "raw: for debugging purposes" rawtext))
   :link '(url-link
           :tag "the definition of the extension"
-          "https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-crate-graph")
+          "https://github.com/rust-analyzer/rust-analyzer/blob/master/\
+docs/dev/lsp-extensions.md#view-crate-graph")
   :link '(url-link
           :tag "documentation of rust-analyzer"
           "https://rust-analyzer.github.io/manual.html#view-crate-graph"))
@@ -664,7 +669,7 @@ See `eglot-x-enable-refs'."
 This is almost a verbatim copy of `eglot--apply-text-edits', but
 it handles the SnippetTextEdit format."
   ;; NOTE: eglot--apply-text-edits changed a lot since this defun was
-  ;; imlemented.  Additionally, rust-analyzer has changed as well.
+  ;; implemented.  Additionally, rust-analyzer has changed as well.
   ;; Now it only sends one SnippetTextEdit.  Hence the implementation
   ;; should be updated, but "if it ain't broke, don't fix it".  And
   ;; this whole extension is going to be obsoleted soon:
@@ -1234,7 +1239,6 @@ For debugging purposes."
                    :rust-analyzer/shuffleCrateGraph
                    nil)
   (eglot-x-view-crate-graph full image-format))
-
 
 ;;; Expand Macro
 ;; https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#expand-macro
