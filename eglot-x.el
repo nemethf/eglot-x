@@ -145,6 +145,10 @@ Example: the \"Add derive\" code action transforms \"struct S;\"
 into \"#[derive($0)] struct S;\""
   :type 'boolean
   :link '(url-link
+	  :tag "A more complex example"
+	  "https://github.com/rust-lang/rust-analyzer/blob/master/\
+/crates/ide-assists/src/handlers/generate_trait_from_impl.rs#L20")
+  :link '(url-link
           :tag "The definition of the extension (rust-analyzer)"
           "https://github.com/rust-analyzer/rust-analyzer/blob/master/\
 docs/dev/lsp-extensions.md#snippet-textedit"))
@@ -664,7 +668,58 @@ See `eglot-x-enable-refs'."
 
 ;;; Snippet TextEdit
 
-(defun eglot-x--apply-text-edits (edits &optional version silent)
+(defun eglot-x--unify-snippets (aa bb)
+  "Unify snippet regions AA BB.
+AA and BB are in the form of (beg end).
+
+Moreover, keep just one placeholder (default value) because
+yasnippnet does not allow more than one placeholder for one field
+index."
+  (if (not aa)
+      bb
+    (let* ((s (sort (list aa bb) (lambda (a b) (< (car a) (car b)))))
+	   (a-min (caar s))
+	   (a-max (cadar s))
+	   (b-min (caadr s))
+	   (b-max (cadadr s))
+	   (i 0)
+	   done)
+      (save-restriction
+	(widen)
+	(replace-regexp-in-region "([`$])" "\\\1" a-max b-min)
+	(narrow-to-region a-min b-max)
+	(while (not done)
+	  (goto-char (point-min))
+	  (if (not (re-search-forward (format "${?%d[^0-9]" i) nil t))
+	      (setq done t)
+	    (while (re-search-forward (format "${%d:[^}]+}" i) nil t)
+	      (replace-match (format "$%d" i) nil nil))
+	    (setq i (1+ i)))))
+      (list a-min b-max))))
+
+(defun eglot-x--work-around-snippet-bug (beg end)
+  "Work around a yasnippet bug.
+\"Expanding ${0:placeholder} doesn't replace placeholder text\"
+See https://github.com/joaotavora/yasnippet/issues/1141"
+  ;; Increment every field index.  It leaves "\$" alone, which is
+  ;; good, but it also leaves "\\$" alone, which it should not.
+  (save-restriction
+    (narrow-to-region beg end)
+    (let (first-done guard brace i)
+      (while (re-search-forward "\\(.?\\)$\\({?\\)\\([0-9]+\\)" nil t)
+	(setq guard (match-string 1))
+	(setq brace (match-string 2))
+	(setq i (string-to-number (match-string 3)))
+	(if (string-equal "\\" guard)
+	    (setq i nil)
+	  (replace-match (format "%s$%s%d" guard brace (1+ i))))
+	(when (and (not first-done) (= i 0))
+	  (if (string-equal "{" brace)
+	      (search-forward "}"))
+	  (setq first-done t)
+	  (insert "$0"))))))
+
+(defun eglot-x--apply-text-edits (edits &optional version _silent)
   "Apply EDITS for current buffer if at VERSION, or if it's nil.
 This is almost a verbatim copy of `eglot--apply-text-edits', but
 it handles the SnippetTextEdit format."
@@ -689,7 +744,7 @@ it handles the SnippetTextEdit format."
                               howmany (current-buffer))
                       0 howmany))
            (done 0)
-           snippet snippet-beg snippet-end)
+           snippet snippet-range)
       (mapc (pcase-lambda (`(,newText ,insertTextFormat (,beg . ,end)))
               (let ((source (current-buffer)))
                 (with-temp-buffer
@@ -730,16 +785,19 @@ it handles the SnippetTextEdit format."
                             ;; to tell, which one contains a real
                             ;; snippet. RA's own .ts implementation
                             ;; uses the regexp above.
-                            (setq snippet newText)
-                            (setq snippet-beg (point-min-marker))
-                            (setq snippet-end (point-max-marker)))))
+			    (setq snippet-range
+				  (eglot-x--unify-snippets
+				   snippet-range (list (point-min-marker)
+						       (point-max-marker)))))))
                       (progress-reporter-update reporter (cl-incf done)))))))
             (mapcar (eglot--lambda ((SnippetTextEdit) range newText insertTextFormat)
                       (list newText insertTextFormat (eglot-range-region range 'markers)))
                     (reverse edits)))
-      (when snippet
-        (goto-char snippet-beg)
-        (delete-region snippet-beg snippet-end)
+      (when snippet-range
+        (goto-char (car snippet-range))
+	(apply #'eglot-x--work-around-snippet-bug snippet-range)
+	(setq snippet (apply #'buffer-substring-no-properties snippet-range))
+        (apply #'delete-region snippet-range)
         (funcall (eglot--snippet-expansion-fn) snippet))
       (undo-amalgamate-change-group change-group)
       (progress-reporter-done reporter))))
