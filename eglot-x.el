@@ -1343,15 +1343,22 @@ With prefix arg start all flycheck processes."
 
 ;;; (Memory Usage) -- this is not documented in lsp-extensions.md
 
-(defun eglot-x-memory-usage ()
+(defun eglot-x-memory-usage (&optional _ignore-auto _noconfirm)
+  "Show the memory usage of rust-analyzer.
+_IGNORE-AUTO and _NOCONFIRM is needed because it is a
+`revert-buffer-function'."
   (interactive)
-  (let ((res
-         (jsonrpc-request (eglot--current-server-or-lose)
-                          :rust-analyzer/memoryUsage
-                          nil)))
+  (let* ((server (eglot--current-server-or-lose))
+	 (res
+          (jsonrpc-request server
+                           :rust-analyzer/memoryUsage
+                           nil)))
     (with-help-window (help-buffer)
       (with-current-buffer (help-buffer)
-        (insert (format "%s" res))))))
+        (setq-local revert-buffer-function #'eglot-x-memory-usage)
+        (setq-local eglot--cached-server server)
+        (setq help-xref-stack-item (list #'eglot-x-memory-usage))
+        (insert res)))))
 
 ;;; Structural Search Replace (SSR)
 
