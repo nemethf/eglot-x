@@ -237,10 +237,7 @@ Call it when there are no active LSP servers."
   (advice-add 'eglot--connect :around #'eglot-x--encoding-enable-hack)
   (advice-add 'jsonrpc--async-request-1 :filter-args
               #'eglot-x--encoding-mod-async-request)
-  (advice-add #'eglot--apply-text-edits :around #'eglot-x--override-text-edits)
-  (advice-add #'eglot--server-info :filter-return #'eglot-x--remove-hidden-info)
-  (advice-add #'eglot--mode-line-format :filter-return
-              #'eglot-x--hack-mode-line-format))
+  (advice-add #'eglot--apply-text-edits :around #'eglot-x--override-text-edits))
 
 (defun eglot-x-disable ()
   "Disable eglot-x.
@@ -259,10 +256,7 @@ connections."
   (advice-remove 'eglot--connect #'eglot-x--encoding-enable-hack)
   (advice-remove 'jsonrpc--async-request-1
                  #'eglot-x--encoding-mod-async-request)
-  (advice-remove #'eglot--apply-text-edits #'eglot-x--override-text-edits)
-  (advice-remove #'eglot--server-info  #'eglot-x--remove-hidden-info)
-  (advice-remove #'eglot--mode-line-format
-                 #'eglot-x--hack-mode-line-format))
+  (advice-remove #'eglot--apply-text-edits #'eglot-x--override-text-edits))
 
 (easy-menu-define eglot-x-menu nil "Eglot-x menu"
   `("Eglot-x"
@@ -285,6 +279,10 @@ connections."
      :visible (eglot--server-capable :experimental :ssr)]
     ["Ask Runnables" eglot-x-ask-runnables
      :visible (eglot--server-capable :experimental :runnables)]
+    ["Show Server Status" eglot-x-show-server-status
+     :visible eglot-x-enable-server-status
+     :active  (eglot-x--get-from-server (eglot-current-server)
+                                        :server-status)]
     ("rust-analyzer commands"
      :visible (equal "rust-analyzer"
                      (plist-get (eglot--server-info (eglot-current-server))
@@ -1757,61 +1755,79 @@ This is in contrast to merely setting it to 0."
       (setq plist (cddr plist)))
     p))
 
-(defvar eglot-x--remove-hidden-info t)
-(defun eglot-x--remove-hidden-info (server-info)
-  (if eglot-x--remove-hidden-info
-      (eglot-x--plist-delete server-info :eglot-x)
-    server-info))
-
 (defun eglot-x--put-in-server (server prop val)
-  "Put PROP-VAL into SERVER object just like `plist-put'."
+  "Put PROP-VAL into SERVER object similarly to `plist-put'.
+But instead put PROP-VAL into a plist stored in SERVER as :eglot-x."
   ;; We can't inherit from eglot-lsp-server and add an additional
   ;; slot, because this should work on any object inheriting from
-  ;; eglot-lsp-server.  So let's hide PROP-VAL in the eglot-lsp-server
-  ;; object.
-  (let ((eglot-x--remove-hidden-info nil))
-    (setf (eglot--server-info server)
-          (plist-put (eglot--server-info server) :eglot-x
-                     (plist-put (plist-get (eglot--server-info server) :eglot-x)
-                                prop val)))))
+  ;; eglot-lsp-server.
+  (setf (eglot--server-info server)
+        (plist-put (eglot--server-info server) :eglot-x
+                   (plist-put (plist-get (eglot--server-info server) :eglot-x)
+                              prop val))))
 
 (defun eglot-x--get-from-server (server prop)
-  "Get PROP from SERVER object just link `plist-get'."
-  (let ((eglot-x--remove-hidden-info nil))
-    (plist-get (plist-get (eglot--server-info server) :eglot-x)
-               prop)))
+  "Get PROP from SERVER object similarly to `plist-get'.
+But instead get PROP from a plist stored in SERVER as :eglot-x."
+  (plist-get (plist-get (eglot--server-info server) :eglot-x) prop))
 
-;(advice-add #'eglot--server-info :filter-return #'eglot-x--remove-hidden-info)
 
-(defun eglot-x--hack-mode-line-format (current)
-  (pcase-let ((`(,health ,quiescent ,message)
+(defun eglot-x--mode-line-format ()
+  (pcase-let ((`(,health ,quiescent ,_message)
                (eglot-x--get-from-server (eglot--current-server-or-lose)
                                          :server-status)))
-    (if (or (not health)
+    (if (or (not eglot-x-enable-server-status)
+            (not health)
             (and (equal "ok" health)
                  quiescent))
-        current
-      `(,(funcall (if (not quiescent) #'upcase #'identity)
-                  (propertize
-                   (substring health 0 1)
-                   'help-echo (format "Server status: %s%s\n%s"
-                                      (if quiescent "quiescent " "")
-                                      health message)
-                   'face (pcase health
-                           ("warning" 'face 'warning)
-                           ("error"  'face 'error)
-                           (_))))
-        ,@current))))
+        nil
+      (propertize
+       (funcall (if quiescent #'upcase #'identity)
+                (substring health 0 1))
+       'help-echo (eglot-x-show-server-status nil nil t)
+       'keymap (let ((map (make-sparse-keymap)))
+                 (define-key map [mode-line mouse-1]
+                   #'eglot-x-show-server-status)
+                 map)
+       'face (pcase health
+               ("warning" 'face 'warning)
+               ("error"  'face 'error)
+               (_))))))
 
-;(advice-add #'eglot--mode-line-format :filter-return
-;            #'eglot-x--hack-mode-line-format)
+(add-to-list 'mode-line-misc-info
+             '(eglot--managed-mode ((:eval (eglot-x--mode-line-format)))))
+
+(defun eglot-x-show-server-status (&optional _ignore-auto _noconfirm as-string)
+  "Show the latest status recevied from the LSP server.
+If AS-STRING is non-nil, return the status instead of displaying it.
+_IGNORE-AUTO and _NOCONFIRM are used as in `revert-buffer'.
+
+See `eglot-x-enable-server-status'."
+  (interactive)
+  (pcase-let* ((server (eglot--current-server-or-lose))
+               (`(,health ,quiescent ,message)
+                (eglot-x--get-from-server server :server-status))
+               (status
+                (format "eglot-x\nserver status: %s%s\n%s\n%s"
+                        (if quiescent "quiescent " "")
+                        health
+                        (if as-string "mouse-1: Show status in a buffer" "")
+                        (or message ""))))
+    (if as-string
+        status
+      (with-help-window (help-buffer)
+        (with-current-buffer (help-buffer)
+          (setq-local revert-buffer-function #'eglot-x-show-server-status)
+          (setq-local eglot--cached-server server)
+          (setq help-xref-stack-item (list #'eglot-x-show-server-status))
+          (insert status))))))
 
 (cl-defmethod eglot-handle-notification
   (server (_method (eql experimental/serverStatus))
            &key health quiescent message)
   "Handle notification experimental/serverStatus."
   (eglot-x--put-in-server server :server-status (list health quiescent message))
-  (force-mode-line-update))
+  (force-mode-line-update t))
 
 ;;; colorDiagnosticOutput
 (defun eglot-x--ansi-color-apply (string)
