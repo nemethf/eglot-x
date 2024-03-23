@@ -1659,7 +1659,8 @@ Adapted from `eglot--lsp-xref-helper'."
   (eglot--dbind ((Runnable) location)
       (xref-loc-runnable-runnable l)
     (eglot--dbind ((LocationLink) targetRange) location
-      (plist-get (plist-get targetRange :start) :line))))
+      (when-let ((line (plist-get (plist-get targetRange :start) :line)))
+	(1+ line)))))
 
 (cl-defmethod xref-location-marker ((l xref-loc-runnable))
   (eglot--dbind ((Runnable) location args)
