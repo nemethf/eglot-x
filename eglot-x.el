@@ -662,7 +662,12 @@ See `eglot-x-enable-refs'."
   (push '(WorkspaceSymbol
           ((:name  :kind)
            (:tags :location :containerName :deprecated)))
-        eglot--lsp-interface-alist))
+        eglot--lsp-interface-alist)
+  ;; rust-analyzer: experimentail/serverStatus ServerStatusParams
+  (push '(ServerStatus
+	((:health :quiescent)
+	 (:message :workspaceInfo)))
+	eglot--lsp-interface-alist))
 
 ;;; Snippet TextEdit
 
@@ -1779,11 +1784,10 @@ But instead put PROP-VAL into a plist stored in SERVER as :eglot-x."
 But instead get PROP from a plist stored in SERVER as :eglot-x."
   (plist-get (plist-get (eglot--server-info server) :eglot-x) prop))
 
-
 (defun eglot-x--mode-line-format ()
-  (pcase-let ((`(,health ,quiescent ,_message)
-               (eglot-x--get-from-server (eglot--current-server-or-lose)
-                                         :server-status)))
+  (eglot--dbind ((ServerStatus) health quiescent)
+      (eglot-x--get-from-server (eglot--current-server-or-lose)
+                                :server-status)
     (if (or (not eglot-x-enable-server-status)
             (not health)
             (and (equal "ok" health)
@@ -1812,29 +1816,41 @@ _IGNORE-AUTO and _NOCONFIRM are used as in `revert-buffer'.
 
 See `eglot-x-enable-server-status'."
   (interactive)
-  (pcase-let* ((server (eglot--current-server-or-lose))
-               (`(,health ,quiescent ,message)
-                (eglot-x--get-from-server server :server-status))
-               (status
-                (format "eglot-x\nserver status: %s%s\n%s\n%s"
-                        (if quiescent "quiescent " "")
-                        health
-                        (if as-string "mouse-1: Show status in a buffer" "")
-                        (or message ""))))
-    (if as-string
-        status
-      (with-help-window (help-buffer)
-        (with-current-buffer (help-buffer)
-          (setq-local revert-buffer-function #'eglot-x-show-server-status)
-          (setq-local eglot--cached-server server)
-          (setq help-xref-stack-item (list #'eglot-x-show-server-status))
-          (insert status))))))
+  (eglot--dbind ((ServerStatus) health quiescent message workspaceInfo)
+      (eglot-x--get-from-server (eglot--current-server-or-lose)
+                                :server-status)
+    (let ((server (eglot-current-server))
+	  (status
+	   (string-join
+	    (delq nil
+		  (list
+		   (format "eglot-x\nserver status: %s%s"
+			   (if quiescent "quiescent " "")
+			   health)
+                   (if as-string "mouse-1: Show status in a buffer")
+                   (if (and as-string message)
+		       (truncate-string-to-width message 60 nil nil t)
+		     message)))
+	    "\n")))
+      (if as-string
+          status
+	(with-help-window (help-buffer)
+          (with-current-buffer (help-buffer)
+            (setq-local revert-buffer-function #'eglot-x-show-server-status)
+            (setq-local eglot--cached-server server)
+            (setq help-xref-stack-item (list #'eglot-x-show-server-status))
+            (insert status)
+	    (when workspaceInfo
+	      (insert "\n")
+	      (if (functionp 'make-separator-line)
+		  (insert (make-separator-line))
+		(insert "\n"))
+	      (insert (eglot--format-markup workspaceInfo)))))))))
 
 (cl-defmethod eglot-handle-notification
-  (server (_method (eql experimental/serverStatus))
-           &key health quiescent message)
+  (server (_method (eql experimental/serverStatus)) &rest status)
   "Handle notification experimental/serverStatus."
-  (eglot-x--put-in-server server :server-status (list health quiescent message))
+  (eglot-x--put-in-server server :server-status status)
   (force-mode-line-update t))
 
 ;;; colorDiagnosticOutput
