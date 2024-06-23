@@ -1684,11 +1684,12 @@ Adapted from `eglot--lsp-xref-helper'."
 
 (defun eglot-x--run-after-jump () ; a complete workout program
   "Run the selected Runnable after an xref jump."
-  (eglot--dbind ((Runnable) label args)
+  (eglot--dbind ((Runnable) label kind args)
       (let ((loc (xref-item-location xref-current-item)))
         (when (xref-loc-runnable-p loc)
           (xref-loc-runnable-runnable loc)))
-    (let* ((default-directory (or (plist-get args :workspaceRoot)
+    (let* ((default-directory (or (plist-get args :cwd)
+                                  (plist-get args :workspaceRoot)
                                   default-directory))
            (process-environment
             (append process-environment
@@ -1699,13 +1700,21 @@ Adapted from `eglot--lsp-xref-helper'."
            (cargoExtraArgs (append (plist-get args :cargoExtraArgs) nil))
            (executableArgs (append (plist-get args :executableArgs) nil))
            (compile-command
-            (mapconcat #'identity
-                       `(,cargo
-                         ,@(append (plist-get args :cargoArgs) nil)
-                         ,@cargoExtraArgs
-                         ,@(if executableArgs
-                               `("--" ,@executableArgs)))
-                       " "))
+            (pcase kind
+              ("cargo" (mapconcat #'identity
+                                  `(,cargo
+                                    ,@(append (plist-get args :cargoArgs) nil)
+                                    ,@cargoExtraArgs
+                                    ,@(if executableArgs
+                                         `("--" ,@executableArgs)))
+                                  " "))
+              ("shell" (mapconcat #'identity
+                                  (append (list (plist-get args :program))
+                                          (plist-get args :args)
+                                          nil)
+                                  " "))
+              (_ (error "[eglot-x] Server sent an unknown Runnable kind: %s"
+                        kind))))
            (choice
             (and label
                  (read-multiple-choice
