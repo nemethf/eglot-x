@@ -1682,55 +1682,55 @@ Adapted from `eglot--lsp-xref-helper'."
                (plist-get targetRange :start) t)
             (point-marker)))))))
 
-(defun eglot-x--run-after-jump () ; a complete workout program
+(defun eglot-x--run-after-jump ()
   "Run the selected Runnable after an xref jump."
-  (eglot--dbind ((Runnable) label kind args)
-      (let ((loc (xref-item-location xref-current-item)))
-        (when (xref-loc-runnable-p loc)
-          (xref-loc-runnable-runnable loc)))
-    (let* ((default-directory (or (plist-get args :cwd)
-                                  (plist-get args :workspaceRoot)
-                                  default-directory))
-           (process-environment
-            (append process-environment
-                    (when (plist-get args :expectTest)
-                      "UPDATE_EXPECT=1")))
-           (cargo (or (plist-get args :overrideCargo)
-                      "cargo"))
-           (cargoExtraArgs (append (plist-get args :cargoExtraArgs) nil))
-           (executableArgs (append (plist-get args :executableArgs) nil))
-           (compile-command
-            (pcase kind
-              ("cargo" (mapconcat #'identity
-                                  `(,cargo
-                                    ,@(append (plist-get args :cargoArgs) nil)
-                                    ,@cargoExtraArgs
-                                    ,@(if executableArgs
-                                         `("--" ,@executableArgs)))
-                                  " "))
-              ("shell" (mapconcat #'identity
-                                  (append (list (plist-get args :program))
-                                          (plist-get args :args)
-                                          nil)
-                                  " "))
-              (_ (error "[eglot-x] Server sent an unknown Runnable kind: %s"
-                        kind))))
-           (choice
-            (and label
-                 (read-multiple-choice
-                  (format "[eglot-x] Server wants to run:\n  %s\nProceed? "
-                          compile-command)
-                  '((?y "yes")
-                    (?n "no")
-                    (?e "edit" "edit command then run it"))))))
-      (when (eq (car choice) ?e)
-        (setq compile-command (read-string "" compile-command)))
-      (when (member (car choice) '(?e ?y))
+  (when-let* ((loc (xref-item-location xref-current-item))
+              (runnable-p (xref-loc-runnable-p loc)))
+    (eglot--dbind ((Runnable) label kind args)
+        (xref-loc-runnable-runnable loc)
+      (let* ((default-directory (or (plist-get args :cwd)
+                                    (plist-get args :workspaceRoot)
+                                    default-directory))
+             (process-environment
+              (append process-environment
+                      (when (plist-get args :expectTest)
+                        "UPDATE_EXPECT=1")))
+             (cargo (or (plist-get args :overrideCargo)
+                        "cargo"))
+             (cargoExtraArgs (append (plist-get args :cargoExtraArgs) nil))
+             (executableArgs (append (plist-get args :executableArgs) nil))
+             (compile-command
+              (pcase kind
+                ("cargo" (mapconcat #'identity
+                                    `(,cargo
+                                      ,@(append (plist-get args :cargoArgs) nil)
+                                      ,@cargoExtraArgs
+                                      ,@(if executableArgs
+                                            `("--" ,@executableArgs)))
+                                    " "))
+                ("shell" (mapconcat #'identity
+                                    (append (list (plist-get args :program))
+                                            (plist-get args :args)
+                                            nil)
+                                    " "))
+                (_ (error "[eglot-x] Server sent an unknown Runnable kind: %s"
+                          kind))))
+             (choice
+              (and label
+                   (read-multiple-choice
+                    (format "[eglot-x] Server wants to run:\n  %s\nProceed? "
+                            compile-command)
+                    '((?y "yes")
+                      (?n "no")
+                      (?e "edit" "edit command then run it"))))))
+        (when (eq (car choice) ?e)
+          (setq compile-command (read-string "" compile-command)))
+	(when (member (car choice) '(?e ?y))
           ;; compile-command sets next-error-last-buffer, but xref
           ;; after running its hooks (this defun) reclaims
           ;; next-error-last-buffer.  So:
           (add-hook 'compilation-filter-hook 'eglot-x--set-error-buffer)
-          (compile compile-command)))))
+          (compile compile-command))))))
 
 (defun eglot-x--set-error-buffer ()
   (setq next-error-last-buffer (current-buffer))
