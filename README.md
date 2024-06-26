@@ -190,6 +190,14 @@ Relying on taplo/associatedSchema and taplo/listSchemas
 
   ![taplo-menu](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/taplo-menu.png)
 
+## Inactive code
+Deemphasizes code removed by the preprocessor based on compile-time
+information.
+
+Relying on the following extensions:
+- [clangd inactive code]
+- [ccls skipped ranges]
+
 # Other
 
 Eglot-x provides `ff-find-related-file` backends for some LSP servers.
@@ -227,7 +235,9 @@ See the documentation of `eglot-x-enable-ff-related-file-integration`.
 [View Recursive Memory Layout]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-recursive-memory-layout
 [Workspace Symbols Filtering]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#workspace-symbols-filtering
 
+[ccls skipped ranges]: https://github.com/MaskRay/ccls/blob/f36ecb0c0e025f3f3a5c2d28c823316e5d0c48ba/src/message_handler.cc#L275
 [ccls-refs]: https://github.com/MaskRay/ccls/wiki/LSP-Extensions
+[clangd inactive code]: https://clangd.llvm.org/features#kinds
 [eglot]: https://github.com/joaotavora/eglot/
 [gpl]: COPYING
 [graph-easy]: https://metacpan.org/dist/Graph-Easy
