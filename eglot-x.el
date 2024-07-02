@@ -193,9 +193,9 @@ docs/dev/lsp-extensions.md#colored-diagnostic-output"))
   "If non-nil, integrate eglot-x with `ff-find-related-file'.
 
 Eglot-x provides this feature when (i) the Taplo LSP server
-manages .toml files, or (ii) the rust-analyzer LSP server manages
-.rs files.  Then it sets a buffer local value for
-`ff-related-file-alist'."
+manages .toml files, (ii) the rust-analyzer LSP server manages
+.rs files, or (iii) clangd manages c-related files.  Then it sets
+a buffer local value for `ff-related-file-alist'."
     :type 'boolean
     :link '(function-link ff-find-related-file)
     :link '(variable-link ff-related-file-alist))
@@ -373,22 +373,24 @@ connections."
           (setq capabilities (plist-put capabilities :experimental new))))
       capabilities)))
 
-(defvar ff-other-file-alist)
-(declare-function ff-string-match "find-file")
+(eval-when-compile (require 'find-file))
+(declare-function ff-find-the-other-file "find-file")
+
 ;; Should be in `eglot-managed-mode-hook'.
-;;
-;; There's a clangd extension we could use here as well, but it is
-;; less capable than the default `ff-find-related-file'.  See
-;; https://clangd.llvm.org/extensions.html#switch-between-sourceheader
 (defun eglot-x--configure-ff-related-file-alist ()
   (if (and (eglot-managed-p)
            eglot-x-enable-ff-related-file-integration
-	   (require 'find-file nil t))
-      (let ((alist '((".toml" eglot-x--taplo-ff-related-file)
-                     (".rs" eglot-x--rust-ff-related-file)))
-            (fname (buffer-file-name)))
-        (when (cl-loop for item in alist
-                       thereis (ff-string-match (car item) fname))
+           (require 'find-file nil t))
+      (let* ((server-info (eglot--server-info (eglot-current-server)))
+             (server-name (plist-get server-info :name))
+             (alist (cond
+                     ((equal "clangd" server-name)
+                      '(("." eglot-x--c-ff-related-file)))
+                     ((equal "Taplo" server-name)
+                      '(("." eglot-x--taplo-ff-related-file)))
+                     ((eglot-server-capable :experimental :openCargoToml)
+                      '(("." eglot-x--rust-ff-related-file))))))
+        (when alist
           (eglot--setq-saving ff-other-file-alist alist)))))
 
 ;;; Files extension
@@ -1908,8 +1910,29 @@ See `eglot-x-enable-colored-diagnostics'."
                              :experimental/openCargoToml
                              `(:textDocument ,(eglot--TextDocumentIdentifier))))
            (related-file (eglot-uri-to-path (plist-get res :uri))))
-      (if (string= "" related-file)
+      (if (or (not related-file)
+              (string= "" related-file))
           (list "Cargo.toml")
+        (find-file-noselect related-file) ; See Emacs bug#57325.
+        (list related-file)))))
+
+;; https://clangd.llvm.org/extensions.html#switch-between-sourceheader
+(defun eglot-x--c-ff-related-file (filename)
+  (with-current-buffer (get-file-buffer filename)
+    (let* ((res
+            (jsonrpc-request (eglot--current-server-or-lose)
+                             :textDocument/switchSourceHeader
+                             (eglot--TextDocumentIdentifier)))
+           (related-file (eglot-uri-to-path res)))
+      (if (or (not related-file)
+              (string= "" related-file))
+          ;; Fall back to the original implementation.
+          ;;
+          ;; FIXME: `ff-other-file-alist' should be reset to the value
+          ;; stored in `eglot--saved-bindings' instead of
+          ;; `cc-other-file-alist'.
+          (let ((ff-other-file-alist cc-other-file-alist))
+            (list (ff-find-the-other-file)))
         (find-file-noselect related-file) ; See Emacs bug#57325.
         (list related-file)))))
 
