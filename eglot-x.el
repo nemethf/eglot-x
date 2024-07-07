@@ -216,6 +216,19 @@ server detects a problem, this extension makes the beginning of
 the debugging process a tiny bit easier."
   :type 'boolean)
 
+(defcustom eglot-x-enable-inactive-code t
+  "If non-nil, enable inactive code notifications support.
+This deemphasizes code removed by the preprocessor based on
+compile-time information."
+  :type 'boolean
+  :link '((url-link
+           :tag "source code for skipped ranges extension (ccls)"
+	   "https://github.com/MaskRay/ccls/blob/\
+f36ecb0c0e025f3f3a5c2d28c823316e5d0c48ba/src/message_handler.cc#L275")
+	  (url-link
+           :tag "the spec for inactive code extension (clangd)"
+	   "https://clangd.llvm.org/features#kinds")))
+
 
 ;;; Enable the extensions
 ;;
@@ -317,7 +330,7 @@ connections."
      ["List schemas" eglot-x-taplo-list-schemas])))
 
 (cl-defmethod eglot-client-capabilities :around
-  (_s)
+  (server)
   "Extend client with non-standard capabilities."
   (if (not eglot-x--enabled)
       (cl-call-next-method)
@@ -371,6 +384,10 @@ connections."
                (old (if (eq exp eglot--{}) '() exp))
                (new (plist-put old :localDocs t)))
           (setq capabilities (plist-put capabilities :experimental new))))
+      (when eglot-x-enable-inactive-code
+	(setf (cl-getf (cl-getf capabilities :textDocument)
+                       :inactiveRegionsCapabilities)
+              '(:inactiveRegions t)))
       capabilities)))
 
 (eval-when-compile (require 'find-file))
@@ -2181,6 +2198,39 @@ Use `browse-url' for non-local schemas."
       ;; return.
       (find-file-noselect related-file) ; See Emacs bug#57325.
       (list related-file))))
+
+;; The following section handles inactive code notifications. These
+;; are protocol extensions and are implemented differently in
+;; different language servers.
+(cl-defmethod eglot-handle-notification
+  (_server (_method (eql $ccls/publishSkippedRanges)) &key uri skippedRanges)
+  "Listen to CCLS's skipped region notifications and deemphasize
+ inactive code"
+  (eglot-x--hide-inactive-regions uri skippedRanges))
+
+(cl-defmethod eglot-handle-notification
+  (_server (_method (eql textDocument/inactiveRegions))
+           &key regions textDocument &allow-other-keys)
+  "Listen to clangd's inactive code notifications and deemphasize
+ inactive code."
+  (eglot-x--hide-inactive-regions (cl-getf textDocument :uri) regions))
+
+(defun eglot-x--hide-inactive-regions (uri skipped-ranges)
+  ;; adapted from example code in eglot's user manual.
+  (when-let* (eglot-x-enable-inactive-code
+	      (buffer (or (find-buffer-visiting (eglot--uri-to-path uri))
+			  (gethash uri eglot--temp-location-buffers))))
+    (with-current-buffer
+	buffer
+      (remove-overlays nil nil 'eglot-x--inactive-code t)
+      (mapc (lambda (range)
+	      (pcase-let*
+		  ((`(,beg . ,end) (eglot--range-region range)))
+		(let ((ov (make-overlay beg end buffer t nil)))
+		  (overlay-put ov 'face 'font-lock-comment-face)
+		  (overlay-put ov 'eglot--overlay t)
+		  (overlay-put ov 'eglot-x--inactive-code t))))
+	    skipped-ranges))))
 
 (provide 'eglot-x)
 ;;; eglot-x.el ends here
