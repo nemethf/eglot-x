@@ -1695,10 +1695,15 @@ Adapted from `eglot--lsp-xref-helper'."
                                     default-directory))
              (process-environment
               (append process-environment
+                      ;; RA does not send :expectTest since 2024-07-07
                       (when (plist-get args :expectTest)
-                        "UPDATE_EXPECT=1")))
+                        '("UPDATE_EXPECT=1"))
+                      (map-apply (lambda (k v)
+				   (concat (substring (symbol-name k) 1) "=" v))
+                              (plist-get args :environment))))
              (cargo (or (plist-get args :overrideCargo)
                         "cargo"))
+             ;; RA does not send :cargoExtraArgs since 2024-07-07
              (cargoExtraArgs (append (plist-get args :cargoExtraArgs) nil))
              (executableArgs (append (plist-get args :executableArgs) nil))
              (compile-command
