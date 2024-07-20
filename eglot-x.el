@@ -216,6 +216,20 @@ server detects a problem, this extension makes the beginning of
 the debugging process a tiny bit easier."
   :type 'boolean)
 
+(defcustom eglot-x-client-commands (list "editor.action.rename")
+  "List of commands the LSP client supports and advertises to the server."
+  :type '(set
+          ;;(const "rust-analyzer.runSingle")
+          ;;(const "rust-analyzer.debugSingle")
+          ;;(const "rust-analyzer.showReferences")
+          ;;(const "rust-analyzer.gotoLocation")
+          ;;(const "editor.action.triggerParameterHints")
+          (const "editor.action.rename"))
+  :link '(url-link
+          :tag "the definition of the extension (rust-analyzer)"
+          "https://github.com/rust-lang/rust-analyzer/blob/master/\
+docs/dev/lsp-extensions.md#client-commands"))
+
 
 ;;; Enable the extensions
 ;;
@@ -353,6 +367,14 @@ connections."
         (let* ((exp (plist-get capabilities :experimental))
                (old (if (eq exp eglot--{}) '() exp))
                (new (plist-put old :openServerLogs t)))
+          (setq capabilities (plist-put capabilities :experimental new))))
+      (when eglot-x-client-commands
+        (let* ((exp (plist-get capabilities :experimental))
+               (old (if (eq exp eglot--{}) '() exp))
+               (new (plist-put
+                     old
+                     :commands `(:commands ,(apply #'vector
+                                                   eglot-x-client-commands)))))
           (setq capabilities (plist-put capabilities :experimental new))))
       (when (boundp 'eglot-menu)
         (if eglot-x-enable-menu
@@ -637,7 +659,12 @@ See `eglot-x-enable-refs'."
 
 
 ;; Features not implemented:
-;;   Client Commands
+;;   Client Commands (See client_commands() in rust-analyzer/src/config.rs)
+;;     - rust-analyzer.runSingle
+;;     - rust-analyzer.debugSingle"
+;;     - rust-analyzer.showReferences
+;;     - rust-analyzer.gotoLocation
+;;     - editor.action.triggerParameterHints
 ;;   CodeAction Groups
 ;;   Configuration in initializationOptions
 ;;     - This is in the standard: https://github.com/joaotavora/eglot/discussions/845
@@ -724,30 +751,25 @@ See https://github.com/joaotavora/yasnippet/issues/1141"
 	  (setq first-done t)
 	  (insert "$0"))))))
 
-(defun eglot-x--apply-text-edits (edits &optional version _silent)
+(cl-defun eglot-x--apply-text-edits (edits &optional version silent)
   "Apply EDITS for current buffer if at VERSION, or if it's nil.
 This is almost a verbatim copy of `eglot--apply-text-edits', but
 it handles the SnippetTextEdit format."
-  ;; NOTE: eglot--apply-text-edits changed a lot since this defun was
-  ;; implemented.  Additionally, rust-analyzer has changed as well.
-  ;; Now it only sends one SnippetTextEdit.  Hence the implementation
-  ;; should be updated, but "if it ain't broke, don't fix it".  And
-  ;; this whole extension is going to be obsoleted soon:
-  ;; https://github.com/microsoft/language-server-protocol/issues/724#issuecomment-1850413029
-
-  ;; This is quite rust-analyzer specific.  It assumes there is at
-  ;; most one meaningful SnippetTextEdit and that can be identified by
-  ;; searching for "$0".
+  ;; NOTE: SnippetTextEdit is going to be obsoleted:
+  ;; https://github.com/microsoft/language-server-protocol/pull/1892
+  ;; https://github.com/rust-lang/rust-analyzer/issues/16604
+  (unless edits (cl-return-from eglot-x--apply-text-edits))
   (unless (or (not version) (equal version eglot--versioned-identifier))
     (jsonrpc-error "Edits on `%s' require version %d, you have %d"
                    (current-buffer) version eglot--versioned-identifier))
   (atomic-change-group
     (let* ((change-group (prepare-change-group))
            (howmany (length edits))
-           (reporter (make-progress-reporter
-                      (format "[eglot] applying %s edits to `%s'..."
-                              howmany (current-buffer))
-                      0 howmany))
+           (reporter (unless silent
+                       (make-progress-reporter
+                        (format "[eglot-x] applying %s edits to `%s'..."
+                                howmany (current-buffer))
+                        0 howmany)))
            (done 0)
            snippet snippet-range)
       (mapc (pcase-lambda (`(,newText ,insertTextFormat (,beg . ,end)))
@@ -759,42 +781,14 @@ it handles the SnippetTextEdit format."
                       (save-excursion
                         (save-restriction
                           (narrow-to-region beg end)
-
-                          ;; On emacs versions < 26.2,
-                          ;; `replace-buffer-contents' is buggy - it calls
-                          ;; change functions with invalid arguments - so we
-                          ;; manually call the change functions here.
-                          ;;
-                          ;; See emacs bugs #32237, #32278:
-                          ;; https://debbugs.gnu.org/cgi/bugreport.cgi?bug=32237
-                          ;; https://debbugs.gnu.org/cgi/bugreport.cgi?bug=32278
-                          (let ((inhibit-modification-hooks t)
-                                (length (- end beg))
-                                (beg (marker-position beg))
-                                (end (marker-position end)))
-                            (run-hook-with-args 'before-change-functions
-                                                beg end)
-                            (replace-buffer-contents temp)
-                            (run-hook-with-args 'after-change-functions
-                                                beg (+ beg (length newText))
-                                                length))
-                          (when (and (eql insertTextFormat 2)
-                                     (string-match "\\$\\(0\\|{0[^}]*}\\)"
-                                                   newText))
-                            ;; "At the moment, rust-analyzer
-                            ;; guarantees that only a single edit will
-                            ;; have InsertTextFormat.Snippet.", but:
-                            ;; https://github.com/rust-analyzer/rust-analyzer/issues/11006
-                            ;; Every one of them has insertTextFormat
-                            ;; = 2, and there's no easy, reliable way
-                            ;; to tell, which one contains a real
-                            ;; snippet. RA's own .ts implementation
-                            ;; uses the regexp above.
-			    (setq snippet-range
-				  (eglot-x--unify-snippets
-				   snippet-range (list (point-min-marker)
-						       (point-max-marker)))))))
-                      (progress-reporter-update reporter (cl-incf done)))))))
+                            (replace-buffer-contents temp)))
+                      (when (eql insertTextFormat 2)
+			(setq snippet-range
+			      (eglot-x--unify-snippets
+			       snippet-range (list (point-min-marker)
+						   (point-max-marker)))))
+                      (when reporter
+                        (eglot--reporter-update reporter (cl-incf done))))))))
             (mapcar (eglot--lambda ((SnippetTextEdit) range newText insertTextFormat)
                       (list newText insertTextFormat (eglot-range-region range 'markers)))
                     (reverse edits)))
@@ -805,7 +799,8 @@ it handles the SnippetTextEdit format."
         (apply #'delete-region snippet-range)
         (funcall (eglot--snippet-expansion-fn) snippet))
       (undo-amalgamate-change-group change-group)
-      (progress-reporter-done reporter))))
+      (when reporter
+        (progress-reporter-done reporter)))))
 
 (defun eglot-x--override-text-edits (oldfun &rest r)
   (if eglot-x-enable-snippet-text-edit
@@ -2101,6 +2096,30 @@ It relys on a rust-analyzer LSP extension."
         (eglot-x--ML-print-node nodes root `(,nb-levels ,@widths))
         (set (make-local-variable 'outline-minor-mode-highlight) 'override)
         (outline-minor-mode t)))))
+
+;;; Rust-analyzer client commands
+
+(defun eglot-x-execute-command (server command)
+  (pcase (plist-get command :command)
+    ("rust-analyzer.rename" (call-interactively #'eglot-rename))
+    (_ (eglot--request server :workspace/executeCommand command))))
+
+(cl-defmethod eglot-execute :around (server action)
+  "Execute ACTION locally if possible, otherwise ask SERVER to execute it."
+  (if (not eglot-x-client-commands)
+      (cl-call-next-method)
+    ;; This is almost the same as the upstream `eglot-execute'.
+    (eglot--dcase action
+      (((Command)) (eglot-x-execute-command server action))
+      (((CodeAction) edit command data)
+       (if (and (null edit) (null command) data
+                (eglot-server-capable :codeActionProvider :resolveProvider))
+           (eglot-execute server
+                          (eglot--request server :codeAction/resolve action))
+         (when edit (eglot--apply-workspace-edit edit this-command))
+         (when command
+           (eglot-x-execute-command server command)))))))
+
 
 
 ;;; taplo extensions
