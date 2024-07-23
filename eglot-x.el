@@ -216,19 +216,37 @@ server detects a problem, this extension makes the beginning of
 the debugging process a tiny bit easier."
   :type 'boolean)
 
-(defcustom eglot-x-client-commands (list "editor.action.rename")
+(defcustom eglot-x-client-commands
+  (list "rust-analyzer.gotoLocation" "rust-analyzer.rename"
+        "editor.action.rename")
   "List of commands the LSP client supports and advertises to the server."
   :type '(set
           ;;(const "rust-analyzer.runSingle")
           ;;(const "rust-analyzer.debugSingle")
           ;;(const "rust-analyzer.showReferences")
-          ;;(const "rust-analyzer.gotoLocation")
-          ;;(const "editor.action.triggerParameterHints")
+          (const "rust-analyzer.gotoLocation")
+          ;;(const "rust-analyzer.triggerParameterHints")
+          (const "rust-analyzer.rename")
+          ;;; These have been obsoleted since 2024-07-22 by
+          ;;; https://github.com/rust-lang/rust-analyzer/pull/17647
+          ;; (const "editor.action.triggerParameterHints")
           (const "editor.action.rename"))
   :link '(url-link
           :tag "the definition of the extension (rust-analyzer)"
           "https://github.com/rust-lang/rust-analyzer/blob/master/\
 docs/dev/lsp-extensions.md#client-commands"))
+
+(defcustom eglot-x-enable-hover-actions t
+  "Allow the server to put clickable actions at end of hover info.
+\\<eglot-mode-map>
+\\[eldoc-doc-buffer] shows the eldoc buffer where the actions may appear,
+but command `eglot-x-hover-actions' can also execute actions
+corresponding to the current point."
+  :type 'boolean
+  :link '(url-link
+          :tag "the definition of the extension (rust-analyzer)"
+          "https://github.com/rust-lang/rust-analyzer/blob/master/\
+docs/dev/lsp-extensions.md#hover-actions"))
 
 
 ;;; Enable the extensions
@@ -375,6 +393,12 @@ connections."
                      old
                      :commands `(:commands ,(apply #'vector
                                                    eglot-x-client-commands)))))
+          (setq capabilities (plist-put capabilities :experimental new))))
+      (when eglot-x-enable-hover-actions
+        (add-hook 'eglot-managed-mode-hook #'eglot-x-configure-eldoc)
+        (let* ((exp (plist-get capabilities :experimental))
+               (old (if (eq exp eglot--{}) '() exp))
+               (new (plist-put old :hoverActions t)))
           (setq capabilities (plist-put capabilities :experimental new))))
       (when (boundp 'eglot-menu)
         (if eglot-x-enable-menu
@@ -661,14 +685,12 @@ See `eglot-x-enable-refs'."
 ;; Features not implemented:
 ;;   Client Commands (See client_commands() in rust-analyzer/src/config.rs)
 ;;     - rust-analyzer.runSingle
-;;     - rust-analyzer.debugSingle"
+;;     - rust-analyzer.debugSingle
 ;;     - rust-analyzer.showReferences
-;;     - rust-analyzer.gotoLocation
-;;     - editor.action.triggerParameterHints
+;;     - rust-analyzer.triggerParameterHints
 ;;   CodeAction Groups
 ;;   Configuration in initializationOptions
 ;;     - This is in the standard: https://github.com/joaotavora/eglot/discussions/845
-;;   Hover Actions
 ;;   Hover Range
 
 (defun eglot-x--check-capability (&rest capabilities)
@@ -2099,8 +2121,23 @@ It relys on a rust-analyzer LSP extension."
 
 ;;; Rust-analyzer client commands
 
+(cl-defun eglot-x--goto-location (server
+                                  &key targetUri targetSelectionRange
+                                  &allow-other-keys)
+  "Execute rust-analyzer's gotoLocation client command."
+  ;; TODO: use something else instead of window/showDocument, since it
+  ;; does not handle targetRange of goto-location.
+  (eglot-handle-request server 'window/showDocument
+                        :uri targetUri
+                        :external nil
+                        :takeFocus t
+                        :selection targetSelectionRange))
+
 (defun eglot-x-execute-command (server command)
   (pcase (plist-get command :command)
+    ("rust-analyzer.gotoLocation"
+     (apply #'eglot-x--goto-location server
+            (car (append (plist-get command :arguments) nil))))
     ("rust-analyzer.rename" (call-interactively #'eglot-rename))
     (_ (eglot--request server :workspace/executeCommand command))))
 
@@ -2120,6 +2157,100 @@ It relys on a rust-analyzer LSP extension."
          (when command
            (eglot-x-execute-command server command)))))))
 
+;;; Hover Actions
+
+(defvar eglot-x--completion-table)
+
+(defun eglot-x--completing-read-plist (prompt plists)
+  "Call `completing-read' on PLISTS with PROMPT.
+It uses :title and :tooltip elements if they are in a plist.
+Return (cons title plist)."
+  (let* ((completion-extra-properties
+          '(:annotation-function
+            (lambda (c)
+              (when-let ((tooltip
+                          (plist-get (cdr (assoc c eglot-x--completion-table))
+                                     :tooltip)))
+                (format " %s" tooltip)))))
+         (idx 0)
+         (items (mapcar (lambda (plist)
+                          (cl-incf idx)
+                          (cons (or (plist-get plist :title)
+                                    (format "%d " idx))
+                                plist))
+                        plists))
+         (eglot-x--completion-table items))
+    (when items
+      (assoc (completing-read prompt items nil t nil nil (caar items)) items))))
+
+(defun eglot-x-hover-actions ()
+  "Execute user's selected action from possible actions under point.
+The LSP server provides the actions.  See `eglot-x-enable-hover-actions'."
+  (interactive)
+  (eglot-server-capable-or-lose :hoverProvider)
+  (let* ((res (jsonrpc-request
+               (eglot--current-server-or-lose)
+               :textDocument/hover (eglot--TextDocumentPositionParams)))
+         (groups (plist-get res :actions))
+         (group
+          (eglot-x--completing-read-plist "Action group: " groups))
+         (command
+          (eglot-x--completing-read-plist (car group)
+                                          (plist-get (cdr group) :commands))))
+    (if command
+        (eglot-execute (eglot-current-server) (cdr command))
+      (message "[eglot-x] Server returned no hover actions"))))
+
+(defun eglot-x--hover-info (server actions)
+  (with-temp-buffer
+    (dolist (group (append actions nil))
+      (insert (or (plist-get group :title) ""))
+      (let ((sep "")
+            (cb (lambda (data)
+                  (eglot-x-execute-command (car data) (cdr data)))))
+        (dolist (command (append (plist-get group :commands) nil))
+          (insert sep
+                  (propertize (or (plist-get command :title) "X")
+                              'face 'button
+                              'mouse-face 'highlight
+                              'button t
+                              'follow-link t
+                              'category t
+                              'button-data (cons server command)
+                              'help-echo (plist-get command :tooltip)
+                              'keymap button-map
+                              'action cb))
+          (setq sep " ")))
+      (insert "\n"))
+    (buffer-string)))
+
+(defun eglot-x-configure-eldoc ()
+  ;; Should be in `eglot-managed-mode-hook'.
+  (if (and (eglot-managed-p)
+           eglot-x-enable-hover-actions)
+      (add-hook 'eldoc-documentation-functions #'eglot-x-hover-eldoc-function
+                25 t)     ; 25 places it behind `eglot-hover-eldoc-function'.
+    (remove-hook 'eldoc-documentation-functions
+                 #'eglot-x-hover-eldoc-function)))
+
+(defun eglot-x-hover-eldoc-function (cb)
+  "A member of `eldoc-documentation-functions', for hover actions."
+  ;; This is completely independent of `eglot-hover-eldoc-function',
+  ;; it does not need `advice-add' and such, which is nice, but loose
+  ;; coupling has a performance impact: eglot and eglot-x query the
+  ;; server twice of a single hover.
+  (when (eglot-server-capable :hoverProvider)
+    (let ((buf (current-buffer))
+          (server (eglot--current-server-or-lose)))
+      (jsonrpc-async-request
+       server
+       :textDocument/hover (eglot--TextDocumentPositionParams)
+       :success-fn (eglot--lambda ((Hover) actions)
+                     (eglot--when-buffer-window buf
+                       (funcall cb (eglot-x--hover-info server actions)
+                                :echo 'skip)))
+       :deferred :textDocument/hover))
+    t))
 
 
 ;;; taplo extensions
