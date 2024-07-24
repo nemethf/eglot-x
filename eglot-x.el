@@ -217,13 +217,13 @@ the debugging process a tiny bit easier."
   :type 'boolean)
 
 (defcustom eglot-x-client-commands
-  (list "rust-analyzer.gotoLocation" "rust-analyzer.rename"
-        "editor.action.rename")
+  (list "rust-analyzer.showReferences" "rust-analyzer.gotoLocation"
+        "rust-analyzer.rename" "editor.action.rename")
   "List of commands the LSP client supports and advertises to the server."
   :type '(set
           ;;(const "rust-analyzer.runSingle")
           ;;(const "rust-analyzer.debugSingle")
-          ;;(const "rust-analyzer.showReferences")
+          (const "rust-analyzer.showReferences")
           (const "rust-analyzer.gotoLocation")
           ;;(const "rust-analyzer.triggerParameterHints")
           (const "rust-analyzer.rename")
@@ -686,7 +686,6 @@ See `eglot-x-enable-refs'."
 ;;   Client Commands (See client_commands() in rust-analyzer/src/config.rs)
 ;;     - rust-analyzer.runSingle
 ;;     - rust-analyzer.debugSingle
-;;     - rust-analyzer.showReferences
 ;;     - rust-analyzer.triggerParameterHints
 ;;   CodeAction Groups
 ;;   Configuration in initializationOptions
@@ -2133,13 +2132,30 @@ It relys on a rust-analyzer LSP extension."
                         :takeFocus t
                         :selection targetSelectionRange))
 
+(defun eglot-x--show-references (server args)
+  "Execute rust-analyzer's showReferences client command."
+  ;; args is (filename location references)
+  (let ((xrefs
+         (eglot--collecting-xrefs (collect)
+           (mapc
+            (lambda (item)
+              (let* ((uri (plist-get item :uri))
+                     (range (plist-get item :range))
+                     (name (file-name-nondirectory uri))
+                     (eglot--cached-server server))
+                (collect (eglot--xref-make-match name uri range))))
+            (append (caddr args) nil))))
+        (xref-show-xrefs-function xref-show-definitions-function))
+    (xref-show-xrefs xrefs nil)))
+
 (defun eglot-x-execute-command (server command)
-  (pcase (plist-get command :command)
-    ("rust-analyzer.gotoLocation"
-     (apply #'eglot-x--goto-location server
-            (car (append (plist-get command :arguments) nil))))
-    ("rust-analyzer.rename" (call-interactively #'eglot-rename))
-    (_ (eglot--request server :workspace/executeCommand command))))
+  (let ((args (append (plist-get command :arguments) nil)))
+    (pcase (plist-get command :command)
+      ("rust-analyzer.gotoLocation"
+       (apply #'eglot-x--goto-location server (car args)))
+      ("rust-analyzer.rename" (call-interactively #'eglot-rename))
+      ("rust-analyzer.showReferences" (eglot-x--show-references server args))
+      (_ (eglot--request server :workspace/executeCommand command)))))
 
 (cl-defmethod eglot-execute :around (server action)
   "Execute ACTION locally if possible, otherwise ask SERVER to execute it."
