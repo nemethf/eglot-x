@@ -217,11 +217,12 @@ the debugging process a tiny bit easier."
   :type 'boolean)
 
 (defcustom eglot-x-client-commands
-  (list "rust-analyzer.showReferences" "rust-analyzer.gotoLocation"
-        "rust-analyzer.rename" "editor.action.rename")
+  (list "rust-analyzer.runSingle" "rust-analyzer.showReferences"
+        "rust-analyzer.gotoLocation" "rust-analyzer.rename"
+        "editor.action.rename")
   "List of commands the LSP client supports and advertises to the server."
   :type '(set
-          ;;(const "rust-analyzer.runSingle")
+          (const "rust-analyzer.runSingle")
           ;;(const "rust-analyzer.debugSingle")
           (const "rust-analyzer.showReferences")
           (const "rust-analyzer.gotoLocation")
@@ -684,7 +685,6 @@ See `eglot-x-enable-refs'."
 
 ;; Features not implemented:
 ;;   Client Commands (See client_commands() in rust-analyzer/src/config.rs)
-;;     - rust-analyzer.runSingle
 ;;     - rust-analyzer.debugSingle
 ;;     - rust-analyzer.triggerParameterHints
 ;;   CodeAction Groups
@@ -1703,57 +1703,64 @@ Adapted from `eglot--lsp-xref-helper'."
 (defun eglot-x--run-after-jump ()
   "Run the selected Runnable after an xref jump."
   (when-let* ((loc (xref-item-location xref-current-item))
-              (runnable-p (xref-loc-runnable-p loc)))
-    (eglot--dbind ((Runnable) label kind args)
-        (xref-loc-runnable-runnable loc)
-      (let* ((default-directory (or (plist-get args :cwd)
-                                    (plist-get args :workspaceRoot)
-                                    default-directory))
-             (process-environment
-              (append process-environment
-                      ;; RA does not send :expectTest since 2024-07-07
-                      (when (plist-get args :expectTest)
-                        '("UPDATE_EXPECT=1"))
-                      (map-apply (lambda (k v)
-				   (concat (substring (symbol-name k) 1) "=" v))
-                              (plist-get args :environment))))
-             (cargo (or (plist-get args :overrideCargo)
-                        "cargo"))
-             ;; RA does not send :cargoExtraArgs since 2024-07-07
-             (cargoExtraArgs (append (plist-get args :cargoExtraArgs) nil))
-             (executableArgs (append (plist-get args :executableArgs) nil))
-             (compile-command
-              (pcase kind
-                ("cargo" (mapconcat #'identity
-                                    `(,cargo
-                                      ,@(append (plist-get args :cargoArgs) nil)
-                                      ,@cargoExtraArgs
-                                      ,@(if executableArgs
-                                            `("--" ,@executableArgs)))
-                                    " "))
-                ("shell" (mapconcat #'identity
-                                    (append (list (plist-get args :program))
-                                            (plist-get args :args)
-                                            nil)
-                                    " "))
-                (_ (error "[eglot-x] Server sent an unknown Runnable kind: %s"
-                          kind))))
-             (choice
-              (and label
-                   (read-multiple-choice
-                    (format "[eglot-x] Server wants to run:\n  %s\nProceed? "
-                            compile-command)
-                    '((?y "yes")
-                      (?n "no")
-                      (?e "edit" "edit command then run it"))))))
-        (when (eq (car choice) ?e)
-          (setq compile-command (read-string "" compile-command)))
-	(when (member (car choice) '(?e ?y))
-          ;; compile-command sets next-error-last-buffer, but xref
-          ;; after running its hooks (this defun) reclaims
-          ;; next-error-last-buffer.  So:
-          (add-hook 'compilation-filter-hook 'eglot-x--set-error-buffer)
-          (compile compile-command))))))
+              (runnable-p (xref-loc-runnable-p loc))
+              (cmd (eglot-x--get-command-for-runnable
+                    (xref-loc-runnable-runnable loc))))
+    ;; compile-command sets next-error-last-buffer, but xref
+    ;; after running its hooks (this defun) reclaims
+    ;; next-error-last-buffer.  So:
+    (add-hook 'compilation-filter-hook 'eglot-x--set-error-buffer)
+    (compile cmd)))
+
+(defun eglot-x--get-command-for-runnable (runnable)
+  "Return a compile command for RUNNABLE.
+Return a string in case of success or nil."
+  (eglot--dbind ((Runnable) label kind args)
+      runnable
+    (let* ((default-directory (or (plist-get args :cwd)
+                                  (plist-get args :workspaceRoot)
+                                  default-directory))
+           (process-environment
+            (append process-environment
+                    ;; RA does not send :expectTest since 2024-07-07
+                    (when (plist-get args :expectTest)
+                      '("UPDATE_EXPECT=1"))
+                    (map-apply (lambda (k v)
+                                 (concat (substring (symbol-name k) 1) "=" v))
+                            (plist-get args :environment))))
+           (cargo (or (plist-get args :overrideCargo)
+                      "cargo"))
+           ;; RA does not send :cargoExtraArgs since 2024-07-07
+           (cargoExtraArgs (append (plist-get args :cargoExtraArgs) nil))
+           (executableArgs (append (plist-get args :executableArgs) nil))
+           (compile-command
+            (pcase kind
+              ("cargo" (mapconcat #'identity
+                                  `(,cargo
+                                    ,@(append (plist-get args :cargoArgs) nil)
+                                    ,@cargoExtraArgs
+                                    ,@(if executableArgs
+                                          `("--" ,@executableArgs)))
+                                  " "))
+              ("shell" (mapconcat #'identity
+                                  (append (list (plist-get args :program))
+                                          (plist-get args :args)
+                                          nil)
+                                  " "))
+              (_ (error "[eglot-x] Server sent an unknown Runnable kind: %s"
+                        kind))))
+           (choice
+            (and label
+                 (read-multiple-choice
+                  (format "[eglot-x] Server wants to run:\n  %s\nProceed? "
+                          compile-command)
+                  '((?y "yes")
+                    (?n "no")
+                    (?e "edit" "edit command then run it"))))))
+      (when (eq (car choice) ?e)
+        (setq compile-command (read-string "" compile-command)))
+      (when (member (car choice) '(?e ?y))
+        compile-command))))
 
 (defun eglot-x--set-error-buffer ()
   (setq next-error-last-buffer (current-buffer))
@@ -2132,6 +2139,12 @@ It relys on a rust-analyzer LSP extension."
                         :takeFocus t
                         :selection targetSelectionRange))
 
+(defun eglot-x--run-single (server args)
+  "Execute rust-analyzer's runSingle client command."
+  (apply #'eglot-x--goto-location server (plist-get args :location))
+  (when-let ((cmd (eglot-x--get-command-for-runnable args)))
+    (compile cmd)))
+
 (defun eglot-x--show-references (server args)
   "Execute rust-analyzer's showReferences client command."
   ;; args is (filename location references)
@@ -2154,6 +2167,7 @@ It relys on a rust-analyzer LSP extension."
       ("rust-analyzer.gotoLocation"
        (apply #'eglot-x--goto-location server (car args)))
       ("rust-analyzer.rename" (call-interactively #'eglot-rename))
+      ("rust-analyzer.runSingle" (eglot-x--run-single server (car args)))
       ("rust-analyzer.showReferences" (eglot-x--show-references server args))
       (_ (eglot--request server :workspace/executeCommand command)))))
 
