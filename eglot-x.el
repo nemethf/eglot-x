@@ -296,6 +296,10 @@ connections."
     ["Customize Eglot-x" (lambda () (interactive) (customize-group "eglot-x"))]
     "--"
     ["Find additional references" eglot-x-find-refs]
+    ["Find related file" ff-find-other-file
+     :visible (and eglot-x-enable-ff-related-file-integration
+                   (map-contains-key eglot--saved-bindings
+                                     'ff-other-file-alist))]
     ["Join lines" eglot-x-join-lines
      :visible (eglot--server-capable :experimental :joinLines)]
     ["Move item down" eglot-x-move-item-down
