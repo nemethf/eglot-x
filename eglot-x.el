@@ -1310,14 +1310,22 @@ non-workspace crates (crates.io dependencies as well as sysroot crates)")
             (process-send-string (current-buffer) res)
             (process-send-eof)))))))
 
+;; This was removed at 2024-07-26 by
+;; https://github.com/rust-lang/rust-analyzer/commit/7beac14cba1d1ba85011660e5e85159c6f3a136c
 (defun eglot-x--shuffle-crate-graph (full image-format)
   "Shuffle the crate IDs in the crate graph then view it.
 For debugging purposes."
   (interactive "P\ni")
-  (jsonrpc-request (eglot--current-server-or-lose)
-                   :rust-analyzer/shuffleCrateGraph
-                   nil)
-  (eglot-x-view-crate-graph full image-format))
+  (let ((ret (condition-case err
+                 (and (jsonrpc-request (eglot--current-server-or-lose)
+                                       :rust-analyzer/shuffleCrateGraph
+                                       nil)
+                      nil)
+               (jsonrpc-error err))))
+    (if (equal (alist-get 'jsonrpc-error-message ret) "unknown request")
+        (user-error
+         "[eglot-x]: Recent rust-analyzer versions removed \"Shuffle\"")
+      (eglot-x-view-crate-graph full image-format))))
 
 ;;; Expand Macro
 ;; https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#expand-macro
