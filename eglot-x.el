@@ -194,8 +194,9 @@ docs/dev/lsp-extensions.md#colored-diagnostic-output"))
 
 Eglot-x provides this feature when (i) the Taplo LSP server
 manages .toml files, (ii) the rust-analyzer LSP server manages
-.rs files, or (iii) clangd manages c-related files.  Then it sets
-a buffer local value for `ff-related-file-alist'."
+.rs files, (iii) clangd manages c-related files, or (iv)
+OCaml-LSP manages ocaml files.  Then it sets a buffer local value
+for `ff-related-file-alist'."
     :type 'boolean
     :link '(function-link ff-find-related-file)
     :link '(variable-link ff-related-file-alist))
@@ -440,7 +441,10 @@ connections."
                      ((equal "Taplo" server-name)
                       '(("." eglot-x--taplo-ff-related-file)))
                      ((eglot-server-capable :experimental :openCargoToml)
-                      '(("." eglot-x--rust-ff-related-file))))))
+                      '(("." eglot-x--rust-ff-related-file)))
+                     ((eglot-server-capable :experimental :ocamllsp
+                                            :handleSwitchImplIntf)
+                      '(("." eglot-x--ocaml-ff-related-file))))))
         (when alist
           (eglot--setq-saving ff-other-file-alist alist)))))
 
@@ -2373,6 +2377,42 @@ Use `browse-url' for non-local schemas."
       ;; return.
       (find-file-noselect related-file) ; See Emacs bug#57325.
       (list related-file))))
+
+
+;;; ocamllsp extensions
+
+(defvar eglot-x--ff-history nil)
+
+;; https://github.com/ocaml/ocaml-lsp/blob/master/ocaml-lsp-server/docs/ocamllsp/switchImplIntf-spec.md
+;; https://github.com/ocaml/ocaml-lsp/issues/362
+;; https://github.com/ocaml/ocaml-lsp/issues/1330
+(defun eglot-x--ocaml-ff-related-file (filename)
+  (with-current-buffer (get-file-buffer filename)
+    (eglot-x--check-capability :experimental :ocamllsp :handleSwitchImplIntf)
+    (let* ((current-uri (cadr (eglot--TextDocumentIdentifier)))
+	   (res
+            (jsonrpc-request (eglot--current-server-or-lose)
+                             :ocamllsp/switchImplIntf
+                             (vector current-uri)))
+           (related-files (mapcar #'eglot-uri-to-path (append res nil))))
+      (if (not (eq this-command last-command))
+          (setq eglot-x--ff-history nil)
+        (mapc (lambda (f)
+                (when (member f related-files)
+                  (setq related-files
+                        (append (remove f related-files) (list f)))))
+              eglot-x--ff-history))
+      (if (not related-files)
+          (let ((ff-other-file-alist '(("\\.ml\\'" (".mli"))
+                                       ("\\.mli\\'" (".ml")))))
+            (list (ff-find-the-other-file)))
+        (let ((related-file (car related-files))
+	      (current-file (eglot-uri-to-path current-uri)))
+	  (setq eglot-x--ff-history
+		(append (remove current-file eglot-x--ff-history)
+			(list current-file)))
+          (find-file-noselect related-file) ; See Emacs bug#57325.
+          related-files)))))
 
 (provide 'eglot-x)
 ;;; eglot-x.el ends here
