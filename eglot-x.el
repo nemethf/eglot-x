@@ -352,7 +352,11 @@ connections."
                                 :name))
      ["Show info about associated schema" eglot-x-taplo-show-associated-schema]
      ["Find associated schema" eglot-x-taplo-find-associated-schema]
-     ["List schemas" eglot-x-taplo-list-schemas])))
+     ["List schemas" eglot-x-taplo-list-schemas])
+    ;; OCaml-LSP commands
+    ["Find typed holes" eglot-x-find-typed-holes
+     :visible (eglot-server-capable
+               :experimental :ocamllsp :handleTypedHoles)]))
 
 (cl-defmethod eglot-client-capabilities :around
   (_s)
@@ -2413,6 +2417,39 @@ Use `browse-url' for non-local schemas."
 			(list current-file)))
           (find-file-noselect related-file) ; See Emacs bug#57325.
           related-files)))))
+
+(defun eglot-x-find-typed-holes ()
+  "Find typed holes for the current buffer using ocaml-lsp.
+See URL `https://github.com/ocaml/ocaml-lsp/blob/master/ocaml-lsp-server/docs/ocamllsp/typedHoles-spec.md'"
+  (interactive)
+  (eglot-server-capable-or-lose :experimental :ocamllsp :handleTypedHoles)
+  (let* ((server (eglot--current-server-or-lose))
+         (tdi (eglot--TextDocumentIdentifier))
+         (uri (plist-get tdi :uri))
+         (res (jsonrpc-request server :ocamllsp/typedHoles tdi))
+         (xrefs
+          (mapcar (lambda (range)
+                    (eglot--xref-make-match "typed hole" uri range))
+                  res))
+         (xref-show-xrefs-function xref-show-definitions-function)
+         prev-xref prev-line)
+    ;; Ajust summaries when multiple xref items are on the same line.
+    ;; Assume the server sends the ranges sorted.
+    (dolist (xref xrefs)
+      (let* ((loc (xref-item-location xref))
+             (curr-line (xref-location-line loc))
+             (curr-postfix (substring (xref-item-summary xref)
+                                      (xref-file-location-column loc))))
+        (when (eq prev-line curr-line)
+          (oset xref summary curr-postfix)
+          (oset prev-xref summary (substring (xref-item-summary prev-xref)
+                                             0
+                                             (* -1 (length curr-postfix)))))
+        (setq prev-xref xref
+              prev-line curr-line)))
+    (if xrefs
+        (xref-show-xrefs xrefs nil)
+      (user-error "[eglot-x] Can't find typed holes"))))
 
 (provide 'eglot-x)
 ;;; eglot-x.el ends here
