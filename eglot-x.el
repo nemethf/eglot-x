@@ -302,21 +302,21 @@ connections."
                    (map-contains-key eglot--saved-bindings
                                      'ff-other-file-alist))]
     ["Join lines" eglot-x-join-lines
-     :visible (eglot--server-capable :experimental :joinLines)]
+     :visible (eglot-server-capable :experimental :joinLines)]
     ["Move item down" eglot-x-move-item-down
-     :visible (eglot--server-capable :experimental :moveItem)]
+     :visible (eglot-server-capable :experimental :moveItem)]
     ["Move item up" eglot-x-move-item-up
-     :visible (eglot--server-capable :experimental :moveItem)]
+     :visible (eglot-server-capable :experimental :moveItem)]
     ["On enter" eglot-x-on-enter
-     :visible (eglot--server-capable :experimental :onEnter)]
+     :visible (eglot-server-capable :experimental :onEnter)]
     ["Jump to matching brace" eglot-x-matching-brace
-     :visible (eglot--server-capable :experimental :matchingBrace)]
+     :visible (eglot-server-capable :experimental :matchingBrace)]
     ["Open external documentation" eglot-x-open-external-documentation
-     :visible (eglot--server-capable :experimental :externalDocs)]
+     :visible (eglot-server-capable :experimental :externalDocs)]
     ["Structural Search Replace (SSR)" eglot-x-structural-search-replace
-     :visible (eglot--server-capable :experimental :ssr)]
+     :visible (eglot-server-capable :experimental :ssr)]
     ["Ask Runnables" eglot-x-ask-runnables
-     :visible (eglot--server-capable :experimental :runnables)]
+     :visible (eglot-server-capable :experimental :runnables)]
     ["Show Server Status" eglot-x-show-server-status
      :visible eglot-x-enable-server-status
      :active  (eglot-x--get-from-server (eglot-current-server)
@@ -704,10 +704,6 @@ See `eglot-x-enable-refs'."
 ;;     - This is in the standard: https://github.com/joaotavora/eglot/discussions/845
 ;;   Hover Range
 
-(defun eglot-x--check-capability (&rest capabilities)
-  (unless (apply #'eglot-server-capable capabilities)
-    (eglot--error "Server lacks capability: %s" capabilities)))
-
 (eval-and-compile
   ;; This is an unnamed type within WorkspaceSymbol/location
   (push '(Runnable
@@ -847,7 +843,7 @@ it handles the SnippetTextEdit format."
 (defun eglot-x-join-lines (&optional beg end)
   "Request the server to handle \"Join Lines\" editor action."
   (interactive (and (region-active-p) (list (region-beginning) (region-end))))
-  (eglot-x--check-capability :experimental :joinLines)
+  (eglot-server-capable-or-lose :experimental :joinLines)
   (let ((res
          (jsonrpc-request (eglot--current-server-or-lose)
                           :experimental/joinLines
@@ -870,7 +866,7 @@ it handles the SnippetTextEdit format."
   "Ask server to move down item under point or selection.
 With prefix arg move it up."
   (interactive "*P")
-  (eglot-x--check-capability :experimental :moveItem)
+  (eglot-server-capable-or-lose :experimental :moveItem)
   (let* ((beg (if (region-active-p) (region-beginning) (point)))
          (end (if (region-active-p) (region-end) (point)))
          (res
@@ -899,7 +895,7 @@ case.")
 (defun eglot-x-on-enter (&optional arg interactive)
   "Request the server to handle the \"Enter\" keypress."
   (interactive "*P\np")
-  (eglot-x--check-capability :experimental :onEnter)
+  (eglot-server-capable-or-lose :experimental :onEnter)
   (let ((res
          (jsonrpc-request (eglot--current-server-or-lose)
                           :experimental/onEnter
@@ -914,7 +910,7 @@ case.")
   "Jump to matching brace.  Available in `eglot-x-find-refs' as well."
   ;; When is this better than `backward-sexp', `forward-sexp'?
   (interactive)
-  (eglot-x--check-capability :experimental :matchingBrace)
+  (eglot-server-capable-or-lose :experimental :matchingBrace)
   (let ((res (jsonrpc-request
               (eglot--current-server-or-lose)
               :experimental/matchingBrace
@@ -930,7 +926,7 @@ case.")
 (defun eglot-x-open-external-documentation ()
   "Open a URL to the documentation for the symbol under point."
   (interactive)
-  (eglot-x--check-capability :experimental :externalDocs)
+  (eglot-server-capable-or-lose :experimental :externalDocs)
   (let ((res (jsonrpc-request (eglot--current-server-or-lose)
                               :experimental/externalDocs
                               (eglot--TextDocumentPositionParams))))
@@ -1410,7 +1406,7 @@ _IGNORE-AUTO and _NOCONFIRM is needed because it is a
 Example, SSR with query:  foo($a, $b) ==>> ($a).foo($b) will transforms,
 foo(y + 5, z) into (y + 5).foo(z)."
   (interactive (list (eglot-x--read-ssr)))
-  (eglot-x--check-capability :experimental :ssr)
+  (eglot-server-capable-or-lose :experimental :ssr)
   (let* ((sel
           (if (region-active-p)
               (vector (list :start (eglot--pos-to-lsp-position (region-beginning))
@@ -1542,7 +1538,7 @@ See `eglot-x--replace' for the description of RDATA, and
 
 (defun eglot-x--read-ssr ()
   (interactive)
-  (eglot-x--check-capability :experimental :ssr)
+  (eglot-server-capable-or-lose :experimental :ssr)
   (let* ((sel
           (if (region-active-p)
               (vector (list :start (eglot--pos-to-lsp-position (region-beginning))
@@ -1602,7 +1598,7 @@ See `eglot-x--replace' for the description of RDATA, and
 
 (defun eglot-x--read-workspace-symbol ()
   "Symbol at point is in future history."
-  (eglot-x--check-capability :workspaceSymbolProvider)
+  (eglot-server-capable-or-lose :workspaceSymbolProvider)
   (setq eglot-x--ws-args-alist nil)  ; use server's default
   (let ((timer
          (run-with-idle-timer 1 t #'eglot-x--ws-timer-function
@@ -1794,7 +1790,7 @@ Return a string in case of success or nil."
 With prefix arg request runnables for the whole file."
   (interactive "P")
   (unless method
-    (eglot-x--check-capability :experimental :runnables))
+    (eglot-server-capable-or-lose :experimental :runnables))
   (let* ((res
           (jsonrpc-request (eglot--current-server-or-lose)
                            (or method :experimental/runnables)
@@ -1952,7 +1948,7 @@ See `eglot-x-enable-colored-diagnostics'."
   ;; Instead of using eglot--lsp-xref-helper (and xref), send the
   ;; request directely.
   (with-current-buffer (get-file-buffer filename)
-    (eglot-x--check-capability :experimental :openCargoToml)
+    (eglot-server-capable-or-lose :experimental :openCargoToml)
     (let* ((res
             (jsonrpc-request (eglot--current-server-or-lose)
                              :experimental/openCargoToml
@@ -2392,9 +2388,9 @@ Use `browse-url' for non-local schemas."
 ;; https://github.com/ocaml/ocaml-lsp/issues/1330
 (defun eglot-x--ocaml-ff-related-file (filename)
   (with-current-buffer (get-file-buffer filename)
-    (eglot-x--check-capability :experimental :ocamllsp :handleSwitchImplIntf)
+    (eglot-server-capable-or-lose :experimental :ocamllsp :handleSwitchImplIntf)
     (let* ((current-uri (cadr (eglot--TextDocumentIdentifier)))
-	   (res
+           (res
             (jsonrpc-request (eglot--current-server-or-lose)
                              :ocamllsp/switchImplIntf
                              (vector current-uri)))
