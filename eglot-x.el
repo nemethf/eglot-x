@@ -2429,18 +2429,18 @@ See URL `https://github.com/ocaml/ocaml-lsp/blob/master/ocaml-lsp-server/docs/oc
                   res))
          (xref-show-xrefs-function xref-show-definitions-function)
          prev-xref prev-line)
-    ;; Ajust summaries when multiple xref items are on the same line.
+    ;; Adjust summaries when multiple xref items are on the same line.
     ;; Assume the server sends the ranges sorted.
     (dolist (xref xrefs)
       (let* ((loc (xref-item-location xref))
              (curr-line (xref-location-line loc))
-             (curr-postfix (substring (xref-item-summary xref)
+             (curr-suffix (substring (xref-item-summary xref)
                                       (xref-file-location-column loc))))
         (when (eq prev-line curr-line)
-          (oset xref summary curr-postfix)
+          (oset xref summary curr-suffix)
           (oset prev-xref summary (substring (xref-item-summary prev-xref)
                                              0
-                                             (* -1 (length curr-postfix)))))
+                                             (* -1 (length curr-suffix)))))
         (setq prev-xref xref
               prev-line curr-line)))
     (if xrefs
