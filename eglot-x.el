@@ -376,7 +376,8 @@ connections."
                       (list :offsetEncoding
                             (apply #'vector
                                    (mapcar #'car eglot-x-encoding-alist))))))
-      (when eglot-x-enable-snippet-text-edit
+      (when (and eglot-x-enable-snippet-text-edit
+                 (eglot--snippet-expansion-fn))
         (let* ((exp (plist-get capabilities :experimental))
                (old (if (eq exp eglot--{}) '() exp))
                (new (plist-put old :snippetTextEdit t)))
@@ -832,7 +833,8 @@ it handles the SnippetTextEdit format."
         (progress-reporter-done reporter)))))
 
 (defun eglot-x--override-text-edits (oldfun &rest r)
-  (if eglot-x-enable-snippet-text-edit
+  (if (and eglot-x-enable-snippet-text-edit
+           (eglot--snippet-expansion-fn))
       (apply #'eglot-x--apply-text-edits r)
     (apply oldfun r)))
 
