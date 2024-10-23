@@ -1343,7 +1343,8 @@ For debugging purposes."
 (defun eglot-x-expand-macro ()
   "Expand macro call at point."
   (interactive)
-  (let ((res (jsonrpc-request (eglot--current-server-or-lose)
+  (let ((orig-major-mode major-mode)
+        (res (jsonrpc-request (eglot--current-server-or-lose)
                               :rust-analyzer/expandMacro
                               (eglot--TextDocumentPositionParams))))
     (when (not (plist-get res :name))
@@ -1351,7 +1352,7 @@ For debugging purposes."
     (pop-to-buffer (format "eglot-macro-%s.rs" (plist-get res :name)))
     (delete-region (point-min) (point-max))
     (insert (plist-get res :expansion))
-    (rust-mode)
+    (funcall orig-major-mode)
     ;;; The following might be useful, but doesn't work flawlessly
     ;;(setq eglot--cached-server server)
     ;;(eglot--managed-mode)
