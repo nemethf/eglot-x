@@ -63,6 +63,16 @@ positions.
 - [Join Lines]: see defun `eglot-x-join-lines`.
 - [Move Item]: see defun `eglot-x-move-item-down` and `eglot-x-move-item-up`.
 - [On Enter]: see defun `eglot-x-on-enter`.
+
+> [!WARNING]
+> Do **not** bind `eglot-x-on-enter` by remapping `newline` in the Eglot map, like in this example:
+> ```emacs-lisp
+>(use-package eglot-x
+> (:map eglot-mode-map
+>  ([remap newline] . eglot-x-on-enter)))
+>```
+> As that could break the fallback used when the server doesn't provide this extension.
+
 - [Matching Brace]: see `eglot-x-matching-brace`.
   However, emacs' own `backward-sexp`, and `forward-sexp` seem to be
   more useful.
