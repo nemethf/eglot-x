@@ -339,7 +339,7 @@ connections."
      ["Reload workspace" eglot-x-reload-workspace]
      ["Rebuild proc-macros" eglot-x-rebuild-proc-macros]
      ["Status" eglot-x-analyzer-status]
-     ["Show syntax tree" eglot-x-show-syntax-tree]
+     ["View syntax tree" eglot-x-view-syntax-tree]
      ["View HIR" eglot-x-view-hir]
      ["View MIR" eglot-x-view-mir]
      ["Interpret Function" eglot-x-interpret-function]
@@ -975,45 +975,75 @@ The server also runs the build scripts to reseed the build data."
 
 (defvar eglot-x--source-buffer)
 
-(defun eglot-x--pop-source-buffer (marker)
-  (save-excursion
-    (goto-char (marker-position marker))
-    (beginning-of-line)
-    (when (re-search-forward "@\\([0-9]+\\)\\.\\.\\([0-9]+\\)")
-      (let ((beg (string-to-number (match-string 1)))
-            (end (string-to-number (match-string 2))))
+(defvar eglot-x--syntax-tree-pt)
+
+(defvar eglot-x--syntax-tree-hl (make-overlay 1 1))
+
+(overlay-put eglot-x--syntax-tree-hl 'face 'highlight)
+
+(defun eglot-x--syntax-tree-delete-overlay ()
+  (delete-overlay eglot-x--syntax-tree-hl)
+  (remove-hook 'post-command-hook
+               #'eglot-x--syntax-tree-delete-overlay t))
+
+(defun eglot-x--syntax-tree-highlight-source ()
+  (interactive)
+  (let (beg end)
+    (save-excursion
+      (forward-line 0)
+      (when (re-search-forward "@\\([0-9]+\\)..\\([0-9]+\\)" nil t)
+        (setq beg (1+ (string-to-number (match-string 1))))
+        (setq end (1+ (string-to-number (match-string 2))))))
+    (when (and beg end eglot-x--source-buffer)
+      (save-selected-window
         (pop-to-buffer eglot-x--source-buffer)
-        (goto-char (+ 1 end))
-        (set-mark-command nil)
-        (goto-char (+ 1 beg))))))
+        (add-hook 'post-command-hook
+                  #'eglot-x--syntax-tree-delete-overlay nil t)
+        ;; This is copied from Eglot's window/showDocument handler, which
+        ;; is not perfect, see Emacs bug#70193.
+        (xref--goto-char end)
+        (xref--goto-char beg)
+        (move-overlay eglot-x--syntax-tree-hl beg end (current-buffer))))))
 
-(define-button-type 'eglot-x--syntax-tree
-  :supertype 'help-xref
-  'action #'eglot-x--pop-source-buffer
-  'help-echo (purecopy "mouse-1, RET: jump to source"))
+(defun eglot-x--syntax-tree-print-obj (level obj src-point)
+  (let ((start (plist-get obj :start))
+        (end (plist-get obj :end)))
+    (insert (format "%s %s:%s @%s..%s"
+                    (make-string level ?*)
+                    (plist-get obj :type)
+                    (plist-get obj :kind)
+                    start
+                    end))
+    (when (and (<= start src-point)
+               (<= src-point end))
+      (setq eglot-x--syntax-tree-pt (point))))
+  (insert "\n")
+  (seq-doseq (child (plist-get obj :children))
+    (eglot-x--syntax-tree-print-obj (1+ level) child src-point)))
 
-(defun eglot-x-show-syntax-tree (&optional beg end)
-  "Show textual representation of a parse tree for the file/region.
+(defun eglot-x-view-syntax-tree ()
+  "Show JSON representation of a syntax tree for the current file.
 Primarily for debugging, but very useful for all people working
 on rust-analyzer itself."
-  (interactive (and (region-active-p) (list (region-beginning) (region-end))))
+  (interactive)
   (let ((res
          (jsonrpc-request (eglot--current-server-or-lose)
-                          :rust-analyzer/syntaxTree
-                          (list :textDocument (eglot--TextDocumentIdentifier)
-                                :ranges
-                                (vector (list :start (eglot--pos-to-lsp-position beg)
-                                              :end (eglot--pos-to-lsp-position end))))))
-        (src-buf (current-buffer)))
-    (with-help-window (help-buffer)
-      (with-current-buffer (help-buffer)
-        (setq-local eglot-x--source-buffer src-buf)
-        (insert (format "%s" res))
-        (goto-char (point-min))
-        (while (re-search-forward "@\\([0-9]+\\)\\.\\.\\([0-9]+\\)" nil t)
-          (make-text-button (match-beginning 1) (match-end 2)
-                            'type 'eglot-x--syntax-tree
-                            'action 'eglot-x--pop-source-buffer))))))
+                          :rust-analyzer/viewSyntaxTree
+                          (list :textDocument (eglot--TextDocumentIdentifier))))
+        (src-buf (current-buffer))
+        (src-point (1- (point)))
+        (eglot-x--syntax-tree-pt 0))
+    (pop-to-buffer (help-buffer))
+    (read-only-mode -1)
+    (erase-buffer)
+    (eglot-x--syntax-tree-print-obj
+     1 (json-parse-string res :object-type 'plist) src-point)
+    (outline-mode)
+    (goto-char eglot-x--syntax-tree-pt)
+    (forward-line 0)
+    (setq-local eglot-x--source-buffer src-buf)
+    (add-hook 'post-command-hook #'eglot-x--syntax-tree-highlight-source nil t)
+    (view-mode)))
 
 ;;; View Hir/Mir/Interpret Function
 
