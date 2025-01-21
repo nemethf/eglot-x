@@ -892,16 +892,18 @@ With prefix arg move it down."
   "Fallback function when onEnter does nothing.
 It seems onEnter works only in comments, otherwise it returns no
 TextEdits.  This variable defines what function to call in that
-case.")
+case or when ther server does not support onEnter at all.")
 
 (defun eglot-x-on-enter (&optional arg interactive)
   "Request the server to handle the \"Enter\" keypress."
   (interactive "*P\np")
-  (eglot-server-capable-or-lose :experimental :onEnter)
   (let ((res
-         (jsonrpc-request (eglot--current-server-or-lose)
-                          :experimental/onEnter
-                          (eglot--TextDocumentPositionParams))))
+         (and (eglot-server-capable :experimental :onEnter)
+              eglot-x-enable-snippet-text-edit
+              (eglot--snippet-expansion-fn)
+              (jsonrpc-request (eglot--current-server-or-lose)
+                               :experimental/onEnter
+                               (eglot--TextDocumentPositionParams)))))
     (if res
         (eglot-x--apply-text-edits res)
       (funcall eglot-x-on-enter-fallback arg interactive))))
