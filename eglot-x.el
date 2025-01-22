@@ -2312,7 +2312,7 @@ The LSP server provides the actions.  See `eglot-x-enable-hover-actions'."
       (add-hook 'eldoc-documentation-functions #'eglot-x-hover-eldoc-function
                 25 t)     ; 25 places it behind `eglot-hover-eldoc-function'.
     (remove-hook 'eldoc-documentation-functions
-                 #'eglot-x-hover-eldoc-function)))
+                 #'eglot-x-hover-eldoc-function t)))
 
 (defun eglot-x-hover-eldoc-function (cb)
   "A member of `eldoc-documentation-functions', for hover actions."
