@@ -615,9 +615,9 @@ See `eglot-x-enable-refs'."
          (selected (tmm-prompt menu)))
     (if (functionp (car selected))
         (apply #'funcall selected)
-      (eglot--lsp-xrefs-for-method (car selected)
-                                   :extra-params (cdr selected)
-                                   :capability :definitionProvider))))
+      (eglot--lsp-xref-helper (car selected)
+                              :extra-params (cdr selected)
+                              :capability :definitionProvider))))
 
 
 ;;; Encoding negotiation
