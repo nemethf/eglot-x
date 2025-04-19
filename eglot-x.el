@@ -585,6 +585,7 @@ assumed to be an element of `project-files'."
       ("type definition" eglot-find-typeDefinition)))
     ("rust-analyzer" .
      (("parent-module"   :experimental/parentModule)
+      ("child-modules"   :experimental/childModules)
       ("open-cargo-toml" :experimental/openCargoToml)
       ("matching brace"  eglot-x-matching-brace)
       ("declaration"     eglot-find-declaration)
