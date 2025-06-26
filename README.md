@@ -199,33 +199,33 @@ See the documentation of `eglot-x-enable-ff-related-file-integration`.
 
 [GPLv3+][gpl]
 
-[Analyzer Status]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#analyzer-status
-[Colored diagnostics]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#colored-diagnostic-output
-[Dependency Tree]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#dependency-tree
-[Expand Macro]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#expand-macro
-[Flycheck commands]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#controlling-flycheck
-[Interpret Function]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#interpret-function
-[Join Lines]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#join-lines
-[Local Documentation]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#local-documentation
-[Matching Brace]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#matching-brace
-[Move Item]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#move-item
-[On Enter]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#on-enter
-[Open External Documentation]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#open-external-documentation
-[Rebuild proc-macros]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#rebuild-proc-macros
-[Related Tests]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#related-tests
-[Reload Workspace]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#reload-workspace
-[Runnables]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#runnables
-[Server Status]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#server-status
-[Snippet TextEdits]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#snippet-textedit
-[Syntax Tree]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#syntax-tree
+[Analyzer Status]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#analyzer-status
+[Colored diagnostics]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#colored-diagnostic-output
+[Dependency Tree]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#dependency-tree
+[Expand Macro]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#expand-macro
+[Flycheck commands]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#controlling-flycheck
+[Interpret Function]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#interpret-function
+[Join Lines]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#join-lines
+[Local Documentation]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#local-documentation
+[Matching Brace]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#matching-brace
+[Move Item]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#move-item
+[On Enter]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#on-enter
+[Open External Documentation]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#open-external-documentation
+[Rebuild proc-macros]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#rebuild-proc-macros
+[Related Tests]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#related-tests
+[Reload Workspace]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#reload-workspace
+[Runnables]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#runnables
+[Server Status]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#server-status
+[Snippet TextEdits]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#snippet-textedit
+[Syntax Tree]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#syntax-tree
 [Taplo]: https://github.com/tamasfe/taplo/tree/master/crates/taplo-lsp/src/lsp_ext
 [Upstream memory layout]: https://github.com/rust-lang/rust-analyzer/pull/15081
-[View Crate Graph]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-crate-graph
-[View File Text]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-file-text
-[View Hir]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-hir
-[View Mir]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-mir
-[View Recursive Memory Layout]: https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-recursive-memory-layout
-[Workspace Symbols Filtering]: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#workspace-symbols-filtering
+[View Crate Graph]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#view-crate-graph
+[View File Text]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#view-file-text
+[View Hir]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#view-hir
+[View Mir]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#view-mir
+[View Recursive Memory Layout]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#view-recursive-memory-layout
+[Workspace Symbols Filtering]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#workspace-symbols-filtering
 
 [ccls-refs]: https://github.com/MaskRay/ccls/wiki/LSP-Extensions
 [eglot]: https://github.com/joaotavora/eglot/
