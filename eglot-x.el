@@ -48,6 +48,19 @@
 (require 'text-property-search)
 
 
+;;; Compatibility
+;;
+;; Eglot-x should work with Eglot of the latest Emacs release.
+
+(defconst eglot-x--docver
+  (if (boundp 'eglot--docver)
+      ;; emacs@a542ed23e488675723832071e2ca2fc7333bee7d
+      ;; 2025-11-28
+      'eglot--docver
+    ;; emacs-30.2
+    'eglot--versioned-identifier))
+
+
 ;;; Customization
 (defgroup eglot-x nil
   "Protocol extensions for Eglot"
@@ -790,9 +803,9 @@ it handles the SnippetTextEdit format."
   ;; https://github.com/microsoft/language-server-protocol/pull/1892
   ;; https://github.com/rust-lang/rust-analyzer/issues/16604
   (unless edits (cl-return-from eglot-x--apply-text-edits))
-  (unless (or (not version) (equal version eglot--versioned-identifier))
+  (unless (or (not version) (equal version (symbol-value eglot-x--docver)))
     (jsonrpc-error "Edits on `%s' require version %d, you have %d"
-                   (current-buffer) version eglot--versioned-identifier))
+                   (current-buffer) version (symbol-value eglot-x--docver)))
   (atomic-change-group
     (let* ((change-group (prepare-change-group))
            (howmany (length edits))
@@ -1502,9 +1515,9 @@ See `eglot-x--replace' for the description of RDATA, and
                 (eglot--dbind ((VersionedTextDocumentIdentifier) uri version)
                     textDocument
                   (unless (or (not version)
-                              (equal version eglot--versioned-identifier))
+                              (equal version (symbol-value eglot-x--docver)))
                     (jsonrpc-error "Edits on `%s' require version %d, you have %d"
-                   (current-buffer) version eglot--versioned-identifier))
+                   (current-buffer) version (symbol-value eglot-x--docver)))
                   (with-current-buffer (find-file-noselect (eglot-uri-to-path uri))
                     (mapcar (lambda (edit)
                               (eglot--dbind ((TextEdit) range newText) edit
