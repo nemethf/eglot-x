@@ -1022,8 +1022,8 @@ The server also runs the build scripts to reseed the build data."
         (move-overlay eglot-x--syntax-tree-hl beg end (current-buffer))))))
 
 (defun eglot-x--syntax-tree-print-obj (level obj src-point)
-  (let ((start (plist-get obj :start))
-        (end (plist-get obj :end)))
+  (let ((start (aref (plist-get obj :start) 0))
+        (end (aref (plist-get obj :end) 0)))
     (insert (format "%s %s:%s @%s..%s"
                     (make-string level ?*)
                     (plist-get obj :type)
