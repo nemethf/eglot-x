@@ -164,7 +164,7 @@ into \"#[derive($0)] struct S;\""
   :link '(url-link
           :tag "The definition of the extension (rust-analyzer)"
           "https://github.com/rust-analyzer/rust-analyzer/blob/master/\
-docs/dev/lsp-extensions.md#snippet-textedit"))
+docs/book/src/contributing/lsp-extensions.md#snippet-textedit"))
 
 (defcustom eglot-x-enable-server-status t
   "If non-nil, ask the server to send status messages.
@@ -175,7 +175,7 @@ server-support for capability experimental/serverStatus."
   :link '(url-link
           :tag "the definition of the extension (rust-analyzer)"
           "https://github.com/rust-analyzer/rust-analyzer/blob/master/\
-docs/dev/lsp-extensions.md#server-status"))
+docs/book/src/contributing/lsp-extensions.md#server-status"))
 
 (defcustom eglot-x-graph-type 'auto
   "Default graph type of `eglot-x-view-crate-graph'."
@@ -189,10 +189,10 @@ docs/dev/lsp-extensions.md#server-status"))
   :link '(url-link
           :tag "the definition of the extension"
           "https://github.com/rust-analyzer/rust-analyzer/blob/master/\
-docs/dev/lsp-extensions.md#view-crate-graph")
+docs/book/src/contributing/lsp-extensions.md#view-crate-graph")
   :link '(url-link
           :tag "documentation of rust-analyzer"
-          "https://rust-analyzer.github.io/manual.html#view-crate-graph"))
+          "https://rust-analyzer.github.io/book/features.html#view-crate-graph"))
 
 (defcustom eglot-x-enable-colored-diagnostics t
   "If non-nil, enable colored diagnostic support for rust-analyzer."
@@ -200,7 +200,7 @@ docs/dev/lsp-extensions.md#view-crate-graph")
   :link '(url-link
           :tag "the definition of the extension (rust-analyzer)"
           "https://github.com/rust-lang/rust-analyzer/blob/master/\
-docs/dev/lsp-extensions.md#colored-diagnostic-output"))
+docs/book/src/contributing/lsp-extensions.md#colored-diagnostic-output"))
 
 (defcustom eglot-x-enable-ff-related-file-integration t
   "If non-nil, integrate eglot-x with `ff-find-related-file'.
@@ -221,7 +221,7 @@ for `ff-related-file-alist'."
   :link '(url-link
           :tag "the definition of the extension (rust-analyzer)"
           "https://github.com/rust-lang/rust-analyzer/blob/master/\
-docs/dev/lsp-extensions.md#local-documentation"))
+docs/book/src/contributing/lsp-extensions.md#local-documentation"))
 
 (defcustom eglot-x-enable-open-server-logs t
   "If non-nil, servers can ask Eglot to show its diagnostics buffers.
@@ -249,7 +249,7 @@ the debugging process a tiny bit easier."
   :link '(url-link
           :tag "the definition of the extension (rust-analyzer)"
           "https://github.com/rust-lang/rust-analyzer/blob/master/\
-docs/dev/lsp-extensions.md#client-commands"))
+docs/book/src/contributing/lsp-extensions.md#client-commands"))
 
 (defcustom eglot-x-enable-hover-actions t
   "Allow the server to put clickable actions at end of hover info.
@@ -261,7 +261,7 @@ corresponding to the current point."
   :link '(url-link
           :tag "the definition of the extension (rust-analyzer)"
           "https://github.com/rust-lang/rust-analyzer/blob/master/\
-docs/dev/lsp-extensions.md#hover-actions"))
+docs/book/src/contributing/lsp-extensions.md#hover-actions"))
 
 
 ;;; Enable the extensions
@@ -704,7 +704,7 @@ See `eglot-x-enable-refs'."
 
 
 ;;; rust-analyzer extensions
-;; https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md
+;; https://github.com/rust-lang/rust-analyzer/blob/master/docs/book/src/contributing/lsp-extensions.md
 
 ;; Implemented elsewhere
 ;;   - Parent Module: implemented in `eglot-x-find-refs'.
@@ -1084,7 +1084,7 @@ For debugging or when working on rust-analyzer itself."
 (defun eglot-x-interpret-function ()
   "Try to evaluate the function containing the point.
 It relies on internal rust-analyzer knowledge and does not compile the code.
-See https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#interpret-function"
+See https://github.com/rust-lang/rust-analyzer/blob/master/docs/book/src/contributing/lsp-extensions.md#interpret-function"
   (interactive)
   (eglot-x-view-hir :rust-analyzer/interpretFunction))
 
@@ -1400,7 +1400,7 @@ It is for debugging rust-analyzer."
         (insert res)))))
 
 ;;; Expand Macro
-;; https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#expand-macro
+;; https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/book/src/contributing/lsp-extensions.md#expand-macro
 
 (defun eglot-x-expand-macro ()
   "Expand macro call at point."
@@ -1422,7 +1422,7 @@ It is for debugging rust-analyzer."
 
 ;;; rust-analyzer: Controlling Flycheck
 ;;
-;; https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#controlling-flycheck
+;; https://github.com/rust-lang/rust-analyzer/blob/master/docs/book/src/contributing/lsp-extensions.md#controlling-flycheck
 
 (defun eglot-x-run-flycheck (arg)
   "Start a manual flycheck for the current buffer when checkOnSave is disabled.
@@ -1619,7 +1619,7 @@ See `eglot-x--replace' for the description of RDATA, and
         (cancel-timer timer)))))
 
 ;;; Workspace Symbols Filtering
-;; https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#workspace-symbols-filtering
+;; https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/book/src/contributing/lsp-extensions.md#workspace-symbols-filtering
 
 (defvar eglot-x-ws-keymap
   (let ((map (make-sparse-keymap)))
@@ -2059,14 +2059,15 @@ See `eglot-x-enable-open-server-logs'."
   (let* ((server (eglot--current-server-or-lose))
          (error-window (eglot-stderr-buffer server))
          (error-buffer (window-buffer error-window)))
-    ;; https://rust-analyzer.github.io/manual.html#troubleshooting says
+    ;; https://rust-analyzer.github.io/book/troubleshooting.html says
     ;; "Log messages are printed to stderr"
     (eglot-events-buffer server)
     (switch-to-buffer error-buffer)))
 
 ;;; View Recursive Memory Layout
 ;;
-;; https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#view-recursive-memory-layout
+;; https://github.com/rust-lang/rust-analyzer/blob/master/docs/book/src/contributing/lsp-extensions.md#view-recursive-memory-layout
+
 ;; https://github.com/rust-lang/rust-analyzer/pull/15081
 ;;
 ;; pahole: https://lwn.net/Articles/206805/
