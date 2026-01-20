@@ -358,6 +358,7 @@ connections."
      ["Interpret Function" eglot-x-interpret-function]
      ["Debug file sync problems" eglot-x-debug-file-sync-problems]
      ["View item tree" eglot-x-view-item-tree]
+     ["View failed trait obligations" eglot-x-view-failed-obligations]
      ["Show memory usage" eglot-x-memory-usage])
     ("taplo commands"
      :visible (equal "Taplo"
@@ -1382,6 +1383,21 @@ For debugging purposes."
         (user-error
          "[eglot-x]: Recent rust-analyzer versions removed \"Shuffle\"")
       (eglot-x-view-crate-graph full image-format))))
+
+
+;;; Get Failed Obligations
+
+(defun eglot-x-view-failed-obligations ()
+  "Show information about failed trait obligations at point.
+It is for debugging rust-analyzer."
+  (interactive)
+  (let ((res
+         (jsonrpc-request (eglot--current-server-or-lose)
+                          :rust-analyzer/getFailedObligations
+                          (eglot--TextDocumentPositionParams))))
+    (with-help-window (help-buffer)
+      (with-current-buffer (help-buffer)
+        (insert res)))))
 
 ;;; Expand Macro
 ;; https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/lsp-extensions.md#expand-macro

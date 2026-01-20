@@ -169,7 +169,7 @@ positions.
 
 ### rust-analyzer specific extensions for debugging rust-analyzer
 - [Analyzer Status]: see defun `eglot-x-analyzer-status`.
-- [Syntax Tree]: see defun `eglot-x-show-syntax-tree`.
+- [Syntax Tree]: see defun `eglot-x-view-syntax-tree`.
 
   ![syntax-tree](https://raw.githubusercontent.com/wiki/nemethf/eglot-x/syntax-tree.png)
 
@@ -177,6 +177,7 @@ positions.
 - [View Mir]: see defun `eglot-x-view-mir`.
 - [Interpret Function]: see defun `eglot-x-interpret-function`.
 - [View File Text]: see defun `eglot-x-debug-file-sync-problems`.
+- [Failed Obligations]: see defun `eglot-x-view-failed-obligations`.
 - (Memory Usage): see defun `eglot-x-memory-usage`.
 
 ## Taplo specific extensions
@@ -216,6 +217,7 @@ See the documentation of `eglot-x-enable-ff-related-file-integration`.
 [Reload Workspace]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#reload-workspace
 [Runnables]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#runnables
 [Server Status]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#server-status
+[Failed Obligations]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#get-failed-obligations
 [Snippet TextEdits]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#snippet-textedit
 [Syntax Tree]: https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#syntax-tree
 [Taplo]: https://github.com/tamasfe/taplo/tree/master/crates/taplo-lsp/src/lsp_ext
