@@ -1785,22 +1785,29 @@ Adapted from `eglot--lsp-xref-helper'."
   "Run the selected Runnable after an xref jump."
   (when-let* ((loc (xref-item-location xref-current-item))
               (runnable-p (xref-loc-runnable-p loc))
-              (cmd (eglot-x--get-command-for-runnable
-                    (xref-loc-runnable-runnable loc))))
+              (runnable (xref-loc-runnable-runnable loc))
+              (default-directory (eglot-x--runnable-dir runnable))
+              (cmd (eglot-x--runnable-cmd runnable)))
     ;; compile-command sets next-error-last-buffer, but xref
     ;; after running its hooks (this defun) reclaims
     ;; next-error-last-buffer.  So:
     (add-hook 'compilation-filter-hook 'eglot-x--set-error-buffer)
     (compile cmd)))
 
-(defun eglot-x--get-command-for-runnable (runnable)
+(defun eglot-x--runnable-dir (runnable)
+  "Return working directory for RUNNABLE."
+  (eglot--dbind ((Runnable) label kind args)
+      runnable
+    (or (plist-get args :cwd)
+        (plist-get args :workspaceRoot)
+        default-directory)))
+
+(defun eglot-x--runnable-cmd (runnable)
   "Return a compile command for RUNNABLE.
 Return a string in case of success or nil."
   (eglot--dbind ((Runnable) label kind args)
       runnable
-    (let* ((default-directory (or (plist-get args :cwd)
-                                  (plist-get args :workspaceRoot)
-                                  default-directory))
+    (let* ((default-directory (eglot-x--runnable-dir runnable))
            (process-environment
             (append process-environment
                     ;; RA does not send :expectTest since 2024-07-07
@@ -2224,7 +2231,8 @@ It relys on a rust-analyzer LSP extension."
 (defun eglot-x--run-single (server args)
   "Execute rust-analyzer's runSingle client command."
   (apply #'eglot-x--goto-location server (plist-get args :location))
-  (when-let ((cmd (eglot-x--get-command-for-runnable args)))
+  (when-let ((default-directory (eglot-x--runnable-dir runnable))
+             (cmd (eglot-x--runnable-cmd args)))
     (compile cmd)))
 
 (defun eglot-x--show-references (server args)
