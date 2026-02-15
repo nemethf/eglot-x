@@ -2231,7 +2231,7 @@ It relys on a rust-analyzer LSP extension."
 (defun eglot-x--run-single (server args)
   "Execute rust-analyzer's runSingle client command."
   (apply #'eglot-x--goto-location server (plist-get args :location))
-  (when-let ((default-directory (eglot-x--runnable-dir runnable))
+  (when-let ((default-directory (eglot-x--runnable-dir args))
              (cmd (eglot-x--runnable-cmd args)))
     (compile cmd)))
 
