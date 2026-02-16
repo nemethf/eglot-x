@@ -261,7 +261,21 @@ corresponding to the current point."
   :link '(url-link
           :tag "the definition of the extension (rust-analyzer)"
           "https://github.com/rust-lang/rust-analyzer/blob/master/\
-docs/book/src/contributing/lsp-extensions.md#hover-actions"))
+docs/book/src/contributing/lsp-extensions.md#hover-actions")
+  :link '(variable-link eglot-x-hover-actions-priority))
+
+(defcustom eglot-x-hover-actions-priority 91
+  "The hook priority / depth of hover actions.
+Eglot-x puts `eglot-x-hover-eldoc-function' in
+`eldoc-documentation-functions' with the given prority.  Eldoc calls
+documentation functions in the order of their priories."
+  :type '(restricted-sexp
+          :match-alternatives
+          ((lambda (x)
+             (and (integerp x)
+                  (<= -100 x 100)))))
+  :link '(info-link "(elisp)Setting Hooks")
+  :link '(variable-link eglot-x-enable-hover-actions))
 
 
 ;;; Enable the extensions
@@ -2231,6 +2245,7 @@ It relys on a rust-analyzer LSP extension."
 (defun eglot-x--run-single (server args)
   "Execute rust-analyzer's runSingle client command."
   (apply #'eglot-x--goto-location server (plist-get args :location))
+  (sit-for 0) ;; Give window/showDocument a chance to finish.  See bug #24.
   (when-let ((default-directory (eglot-x--runnable-dir args))
              (cmd (eglot-x--runnable-cmd args)))
     (compile cmd)))
@@ -2349,7 +2364,7 @@ The LSP server provides the actions.  See `eglot-x-enable-hover-actions'."
   (if (and (eglot-managed-p)
            eglot-x-enable-hover-actions)
       (add-hook 'eldoc-documentation-functions #'eglot-x-hover-eldoc-function
-                25 t)     ; 25 places it behind `eglot-hover-eldoc-function'.
+                eglot-x-hover-actions-priority t)
     (remove-hook 'eldoc-documentation-functions
                  #'eglot-x-hover-eldoc-function t)))
 
