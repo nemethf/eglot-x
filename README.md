@@ -12,7 +12,6 @@ Add the following lines to your init file to enable eglot-x
 
 ```elisp
     (with-eval-after-load 'eglot
-      (require 'eglot-x)
       (eglot-x-setup))
 ```
 To adjust which extensions are enabled:

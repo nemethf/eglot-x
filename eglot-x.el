@@ -282,6 +282,7 @@ documentation functions in the order of their priories."
 ;;
 (defvar eglot-x--enabled nil)
 
+;;;####autoload
 (defun eglot-x-setup ()
   "Set up eglot-x to extend Eglot's feature-set.
 Call it when there are no active LSP servers."
