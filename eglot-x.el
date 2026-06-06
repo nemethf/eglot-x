@@ -2288,7 +2288,7 @@ It relys on a rust-analyzer LSP extension."
                 (eglot-server-capable :codeActionProvider :resolveProvider))
            (eglot-execute server
                           (eglot--request server :codeAction/resolve action))
-         (when edit (eglot--apply-workspace-edit edit this-command))
+         (when edit (eglot--apply-workspace-edit server edit this-command))
          (when command
            (eglot-x-execute-command server command)))))))
 
